@@ -3,6 +3,7 @@
 ; PART #: grid-01-01
 ; DESCRIPTION: cuts a 100mm spaced XY grid onto leadCNC 1515 spoilboard using 45* 'V' cutter
 ;              z height and xy extends are -97.06Z, 1195X, -1295Y so check these beforehand 
+;              cutter at approx. 20k rpm recomended
 G54; work Coordinates
 G21; mm mode
 G90; absolute positioning
