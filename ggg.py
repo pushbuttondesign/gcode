@@ -5,6 +5,8 @@ DESCRIPTION
 g-code grid generator
 generates valid grbl gcode for drawing grids with a cnc router
 useful for surfacing and engraving measuring grids
+note that gcode is in absolute mode, check XYZ limits before generating gcode
+start file from machine home
 
 INPUTS
 X and Y maximum values to define rectangle
