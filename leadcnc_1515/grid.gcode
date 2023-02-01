@@ -1,15 +1,15 @@
 ; HEADER
 ; AUTHOR: export from ggg.pyi by steve on 31/01/23
 ; PART #: grid-01-01
-; DESCRIPTION: cuts a 100mm spaced XY grid onto leadCNC 1515 spoilboard using 45* 'V' cutter
+; DESCRIPTION: cuts a 100mm spaced XY grid onto leadCNC 1515 spoil board using 45* 'V' cutter
 ;              z height and xy extends are -97.06Z, 1195X, -1295Y so check these beforehand 
-;              cutter at approx. 20k rpm recomended
+;              cutter at approx. 20k rpm recommended
 G54; work Coordinates
 G21; mm mode
 G90; absolute positioning
 ;G28 Z0; home z axis - not used, assume set start position manually
 ;G28 X0 Y0; home x y at the same time - not used, assume set start position manually 
-M3 S3000; start default spindle 0 clockwise at given RPM
+M3 S20000; start default spindle 0 clockwise at given RPM
 
 ; X AXIS
 G1 Z-97.06 F200; slowly drop cutter to final cut depth

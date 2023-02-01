@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
 """
-MODULE DESCRIPTION
+DESCRIPTION
 g-code grid generator
 generates valid grbl gcode for drawing grids with a cnc router
-useful for 
+useful for surfacing and engraving measuring grids
 
-MODULE FEATURES
-accepts X and Y maximum values to define rectangle
-accepts different pitchs to define gap between cuts in X and Y
-accepts Z value for cutting depth
-accepts one feed speed for all G1 cutting passes
-accepts only X and only Y for half grids
-accepts option for air traverse between grid lines or cutting them
-assumes XYZ start position will be set manually
+INPUTS
+X and Y maximum values to define rectangle
+different pitches to define gap between cuts in X and Y
+feed speed for all G1 cuts
+Z value for cutting depth, default is manually set cut
+option for only X and only Y for lines in one axis only
+option for air traverse between grid lines or cutting them
+safe Z value for traversing
 
 USAGE
 ./ggg.py -x -100 -y 100 --x-pitch -10 --y-pitch 10 -f 500 -z -10 --only-y --air-traverse > sample.gcode
@@ -42,7 +42,7 @@ if args.x_max < 0 and args.x_pitch >= 0 or args.x_max >=0 and args.x_pitch < 0:
 if args.y_max < 0 and args.y_pitch >= 0 or args.y_max >=0 and args.y_pitch < 0:
     raise ValueError('Both axis max & pitch must have the same sign')
 #if args.feed < 500 or args.feed > 1500:
-    #current usage redirects stdout, swap to python file manupulation to present errors
+    #TODO: current usage redirects stdout, swap to python file manupulation to present errors
     #print("Are you sure a feed rate of {} mm per minute is correct?".format(args.feed), flush=True)
     #input("press any key to continue")
 #if args.z_depth < -90:
@@ -56,8 +56,8 @@ print('; PART #: grid-01-01')
 print('G54; work Coordinates')
 print('G21; mm mode')
 print('G90; absolute positioning')
-print(';G28 Z0; home z axis - not used, assume set start position manually')
-print(';G28 X0 Y0; home x y at the same time - not used, assume set start position manually ')
+print('G28 Z0; home z axis')
+print('G28 X0 Y0; home x y at the same time')
 print('M3 S3000; start default spindle 0 clockwise at given RPM')
 
 #return list of cordinates between 0 and end by pitch
@@ -93,7 +93,8 @@ y_cur = 0
 if args.only_y == False:
     print('')
     print('; X AXIS')
-    print('G1 Z{} F200; slowly drop cutter to final cut depth'.format(args.z_depth))
+    print('G1 Z{} F200; cutting depth'.format(args.z_depth))
+    #assume starting at X0 Y0
     for a, b in y_pairs:
         if b != None:
             print('G1 Y{} F{}'.format(a, args.feed))
@@ -119,7 +120,7 @@ if args.only_y == False:
 if args.only_x == False:
     print('')
     print('; Y AXIS')
-    print('G1 Z{} F200; slowly drop cutter to final cut depth'.format(args.z_depth))
+    print('G1 Z{} F200; cutting depth'.format(args.z_depth))
     #if starting at X0 Y0 as y only mode is active
     if x_cur == 0 and y_cur == 0:
         for a, b in x_pairs:
