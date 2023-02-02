@@ -4,9 +4,8 @@
 DESCRIPTION
 g-code grid generator
 generates valid grbl gcode for drawing grids with a cnc router
-useful for surfacing and engraving measuring grids
-note that gcode is in absolute mode, check XYZ limits before generating gcode
-start file from machine home
+useful for surfacing, engraving measuring grids and cutting tests
+remember to check XYZ limits before generating gcode
 
 INPUTS
 X and Y maximum values to define rectangle
@@ -16,6 +15,9 @@ Z value for cutting depth, default is manually set cut
 option for only X and only Y for lines in one axis only
 option for air traverse between grid lines or cutting them
 safe Z value for traversing
+
+OUTPUTS
+gcode valid for GRBL interpriter on stdout
 
 USAGE
 ./ggg.py -x -100 -y 100 --x-pitch -10 --y-pitch 10 -f 500 -z -10 --only-y --air-traverse > sample.gcode
@@ -32,13 +34,15 @@ parser.add_argument('--z-depth', '-z', type=float, default=0, help='Z depth to c
 parser.add_argument('--only-x', default=False, action='store_true', help='surface only in X (default both)')
 parser.add_argument('--only-y', default=False, action='store_true', help='surface only in Y (default both)')
 parser.add_argument('--air-traverse', default=False, action='store_true', help='raises cutter when traversing (default cuts traverses)')
-parser.add_argument('--z-safe', '-s', type=float, default=0, help='safe Z height for traversing (default 0 for home position)')
+parser.add_argument('--z-safe', '-s', type=float, default=0, help='safe Z height for traversing (default 0 for working cordinate 0)')
 args = parser.parse_args()
 v = vars(args)
 
 #argument validation
+if args.only_x == True and args.only_y == True:
+    raise ValueError('Either X or Y required')
 if args.x_pitch * args.x_max * args.y_max * args.feed == 0:
-    raise ValueError('XY & feed input values must be non-zero numbers0')
+    raise ValueError('XY & feed input values must be non-zero numbers')
 if args.x_max < 0 and args.x_pitch >= 0 or args.x_max >=0 and args.x_pitch < 0:
     raise ValueError('Both axis max & pitch must have the same sign')
 if args.y_max < 0 and args.y_pitch >= 0 or args.y_max >=0 and args.y_pitch < 0:
@@ -52,14 +56,31 @@ if args.y_max < 0 and args.y_pitch >= 0 or args.y_max >=0 and args.y_pitch < 0:
     #input("press any key to continue")
 
 #g-code header
+print('; OUTPUT FROM G-CODE GRID GENERATOR')
+print('; X-MAX: {}'.format(args.x_max))
+print('; Y-MAX: {}'.format(args.y_max))
+print('; X-PITCH: {}'.format(args.x_pitch))
+print('; Y-PITCH: {}'.format(args.x_pitch))
+print('; ONLY-X: {}'.format(args.only_x))
+print('; ONLY-Y: {}'.format(args.only_y))
+print('; FEED: {}'.format(args.feed))
+print('; Z-DEPTH: {}'.format(args.z_depth))
+print('; Z-SAFE: {}'.format(args.z_safe))
+print('; AIR-TRAVERSE: {}'.format(args.air_traverse))
+print()
+print('; RECOMENDED USAGE')
+print('; check X-MAX, Y-MAX, FEED, Z-DEPTH & Z-SAFE values')
+print('; run home cycle after machine switch on $H')
+print('; G28 to move to machine cordinate 0,0,0')
+print('; G0 XYZ jog to desired start for running file')
+print(': G10 L20 P1 X0 Y0 Z0 to set working cordinates 0,0,0 for G54')
+print('; G92 XYZ to set offset to all working cordinates if desired')
+print('; run file')
+print()
 print('; HEADER')
-print('; AUTHOR: export from ggg.py')
-print('; PART #: grid-01-01')
-print('G54; work Coordinates')
+print('G54; use work coordinates')
 print('G21; mm mode')
 print('G90; absolute positioning')
-print('G28 Z0; home z axis')
-print('G28 X0 Y0; home x y at the same time')
 print('M3 S3000; start default spindle 0 clockwise at given RPM')
 
 #return list of cordinates between 0 and end by pitch
@@ -93,7 +114,7 @@ x_cur = 0
 y_cur = 0
 
 if args.only_y == False:
-    print('')
+    print()
     print('; X AXIS')
     print('G1 Z{} F200; cutting depth'.format(args.z_depth))
     #assume starting at X0 Y0
@@ -120,7 +141,7 @@ if args.only_y == False:
             x_cur = args.x_max
 
 if args.only_x == False:
-    print('')
+    print()
     print('; Y AXIS')
     print('G1 Z{} F200; cutting depth'.format(args.z_depth))
     #if starting at X0 Y0 as y only mode is active
@@ -176,9 +197,9 @@ if args.only_x == False:
                 if args.air_traverse == True: print('G0 Z{}'.format(args.z_safe))
 
 #g-code footer
-print('')
+print()
 print('; FOOTER')
-print('G28 Z0; home z axis')
+print('G28 Z0; machine cordiante 0  z axis')
 print('M5; stop default spindle 0')
-print('G28 X0 Y0; home x y at the same time ')
+print('G28 X0 Y0; machine cordinate X0 Y0')
 print('M2; end program')
