@@ -12,9 +12,11 @@
 	SPINDLE: 10,000 - 30,000 RPM
 2. turn on machine and connect to openbuilds control
 3. run home cycle after machine switch on using $H
-4. G28 to move to machine coordinate 0,0,0
+4. G21 to set mm mode
+5. G90 to set absolute positioning
+6. G28 to move to machine coordinate 0,0,0 (set by $H)
 5. G0 XYZ jog to desired start for running file
-6. G10 L20 P1 X0 Y0 Z0 to set working coordinates 0,0,0 for G54
-7. G92 XYZ to set offset to all working coordinates if desired
-8. turn on spindle and run file
-
+6. G54 to move to work cordiantes
+7. G10 L20 P1 X0 Y0 Z0 to set working coordinates 0,0,0 for G54
+8. G92 XYZ to set offset to all working coordinates if desired
+9. turn on spindle and run file
