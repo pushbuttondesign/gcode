@@ -1,0 +1,3122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CADFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0" Name="klannimate">
+  <layers>
+    <layer name="Animate - select script, press F5" color="127,255,0" visible="false">
+      <objects>
+        <script id="20">
+          <ModificationCount>754</ModificationCount>
+          <mat m="Identity" />view.Animating = 1
+
+class klann_link:
+    def __init__(self,_pivot_ids,_outline_ids):
+        self.pivot_ids = _pivot_ids
+        self.pivot_entities = []
+        for entid in self.pivot_ids:
+            ent = doc.FindPrimitive(entid)
+            self.pivot_entities.append(ent)
+        self.outline_ids = _outline_ids
+        self.outline_entities = []
+        self.outline_transforms = []
+        for entid in self.outline_ids:
+            ent = doc.FindPrimitive(entid)
+            if ent == None:
+                print str(entid) + " not found!"
+            else:
+                self.outline_transforms.append(Matrix4x4F(ent.Transform))
+                self.outline_entities.append(ent)
+
+    def getPoint(self,i):
+        ent = self.pivot_entities[i]
+        p = ent.Points[0] * ent.Transform
+        return p        
+
+    def __getitem__(self,i):
+        return self.getPoint(i)
+
+    def update(self,pa1,pa2,pb1,pb2):
+        vp1 = Vector2F(pb1.X-pa1.X,pb1.Y-pa1.Y).Unit()
+        vp2 = Vector2F(pb2.X-pa2.X,pb2.Y-pa2.Y).Unit()
+        det = Vector2F.Determinant(vp1,vp2)
+        if Double.IsNaN(det):
+            for i in range (0,len(self.outline_entities)):
+                self.outline_entities[i].Transform = self.outline_transforms[i]
+        else:
+            costheta = Vector2F.DotProduct(vp1,vp2)
+            th = Math.Acos(costheta) * Math.Sign(det)
+            # translate pa1 to 0,0
+            T = Matrix4x4F.Translation(-pa1.X,-pa1.Y,0)
+            # rotate by thete
+            T = T * Matrix4x4F.RotationZ(th)
+            # translate back to pa1
+            T = T * Matrix4x4F.Translation(pa1.X,pa1.Y,0)
+            dx = pa2.X - pa1.X
+            dy = pa2.Y - pa1.Y
+            T = T * Matrix4x4F.Translation(dx,dy,0)
+            for i in range (0,len(self.outline_entities)):
+                self.outline_entities[i].Transform = T * self.outline_transforms[i]
+    
+    def reset(self):
+        for i in range (0,len(self.outline_entities)):
+            self.outline_entities[i].Transform = self.outline_transforms[i]
+
+class klann_system:
+    def __init__(self,_links):
+        self.link = _links
+        self.v1 = Vector3F(self.link[0][0],self.link[0][1])
+        self.r1 = self.v1.Length
+        self.p00 = self.link[0][0]
+        self.p01 = self.link[0][1]
+        self.p10 = self.link[1][0]
+        self.p11 = self.link[1][1]
+        self.p20 = self.link[2][0]
+        self.p21 = self.link[2][1]
+        self.p30 = self.link[3][0]
+        self.p31 = self.link[3][1]
+        self.v2 = Vector3F(self.link[2][0],self.link[2][1])
+        self.r2 = self.v2.Length
+        self.v3 = Vector3F(self.link[0][0],self.link[0][2])
+        self.r3 = self.v3.Length
+        self.v4 = Vector3F(self.link[1][0],self.link[1][1])
+        self.r4 = self.v4.Length
+        self.v5 = Vector3F(self.link[3][0],self.link[3][1])
+        self.r5 = self.v5.Length
+        self.mirror = 0
+
+    def update_links(self):
+        c1 = Circle2F(Point2F(self.link[0][0].X,self.link[0][0].Y),self.r1)
+        c2 = Circle2F(Point2F(self.link[2][0].X,self.link[2][0].Y),self.r2)
+        intersects12 = c1.CircleIntersect(c2,1e-6)
+        if (self.mirror):
+            pnew = intersects12.p2
+        else:
+            pnew = intersects12.p1
+        
+        self.link[0].update(self.p00,self.link[0][0],self.p01,pnew)
+        self.link[2].update(self.p20,self.link[2][0],self.p21,pnew)
+    
+        c3 = Circle2F(Point2F(self.link[1][0].X,self.link[1][0].Y),self.r4)
+        c4 = Circle2F(Point2F(self.link[0][2].X,self.link[0][2].Y),self.r5)
+        intersects34 = c3.CircleIntersect(c4,1e-6)
+        if (self.mirror):
+            pnew2 = intersects34.p1
+        else:
+            pnew2 = intersects34.p2
+        self.link[3].update(self.p30,pnew2,self.p31,self.link[0][2])
+        self.link[1].update(self.p10,self.link[1][0],self.p11,pnew2)
+
+    
+    def reset(self):
+        for ll in self.link:
+            ll.reset()
+    
+
+klann1 = klann_system([
+# 0 : link attached to gear...
+klann_link([26,8,56],[50,66,8,53,56,121]),
+# 1 : top link
+klann_link([64,79],[75,78,79,122]),
+# 2: small link
+klann_link([11,8],[35,51,114]),
+# 3: main leg
+klann_link([79,56],[65,55,113])])
+
+klann2 = klann_system([
+# 0 : link attached to gear...
+klann_link([24,41,59],[120,47,41,19,146,59,108]),
+# 1 : top link
+klann_link([64,62],[159,46,62,96]),
+# 2: small link
+klann_link([11,41],[186,169,110]),
+# 3: main leg
+klann_link([62,59],[111,58,95])])
+
+klann3 = klann_system([
+# 0 : link attached to gear...
+klann_link([77,81,63],[72,70,81,80,63,103]),
+# 1 : top link
+klann_link([52,67],[71,68,67,102]),
+# 2: small link
+klann_link([73,81],[74,84,127]),
+# 3: main leg
+klann_link([67,63],[54,57,98])])
+
+klann4 = klann_system([
+# 0 : link attached to gear...
+klann_link([14,23,28],[27,30,23,15,18,28,104]),
+# 1 : top link
+klann_link([52,42],[39,40,42,101]),
+# 2: small link
+klann_link([73,23],[21,22,105]),
+# 3: main leg
+klann_link([42,28],[48,49,100])])
+
+klann3.mirror=1
+klann4.mirror=1
+
+xgear = [ geardef([13,37,33,36,38,1139,123],86,20,0.23148),
+          geardef([16,116,117,118,119,136,124,151,
+            klann1.link[0].pivot_ids[0],
+            klann2.link[0].pivot_ids[0]]
+            ,25,20,0.23148),
+          geardef([1,2,3,4,5,7,125,152,
+            klann3.link[0].pivot_ids[0],
+            klann4.link[0].pivot_ids[0]]
+            ,12,20,0.23148)]
+
+xgear[1].link( xgear[0] )
+xgear[2].link( xgear[0] )
+
+"""
+# for adjusting one side
+adjust = Math.PI
+xgear[2].rotate(adjust)
+klann3.update_links()
+klann4.update_links()
+xgear[0].reset()
+# TODO: Apply transformations (or get script to handle transforms)
+"""
+
+step = 1
+cycles = 10
+
+th = step*Math.PI/(180.0)
+
+#sys.exit(0)
+
+fixed_ids = [198,86,25,12,11,64,73,52,44,69,6,133,43,34,138,29,45,83,10,145,76,85]
+fixed_ents = []
+fixed_tsave = []
+for id in fixed_ids:
+    ff = doc.FindPrimitive(id)
+    fixed_ents.append(ff)
+    fixed_tsave.append(ff.Transform)
+
+
+TFix = Matrix4x4F.Identity
+xpos = 0
+ypos = 0
+
+for dd in range (0,cycles*360,step):
+
+    for xg in xgear:
+        xg.rotate(th)
+    klann1.update_links()
+    klann2.update_links()
+    klann3.update_links()
+    klann4.update_links()
+
+    view.RefreshView()
+
+    #xpos = xpos - 0.5
+    TFix = Matrix4x4F.Translation(xpos,ypos,0)
+    for i in range(0,len(fixed_ents)):
+        fixed_ents[i].Transform = fixed_tsave[i] * TFix
+
+    app.Sleep(1)
+
+for xg in xgear:
+    xg.reset()
+
+klann1.reset()
+klann2.reset()
+klann3.reset()
+klann4.reset()
+
+for ifix in range(0,len(fixed_ents)):
+    ff = fixed_ents[ifix]
+    ff.Transform = fixed_tsave[ifix]
+    
+    
+view.Animating = 0<ExecuteOnUpdate>false</ExecuteOnUpdate></script>
+      </objects>
+      <ModificationCount>5</ModificationCount>from CamBam.Geom import *
+
+
+class geardef:
+    def __init__(self,_id,_center,_teeth,_pitch):
+        self.id = _id
+        # self.center = _center
+        self.teeth = _teeth
+        self.pitch = _pitch
+        # d is the pitch diameter
+        self.d = _teeth / _pitch
+        # self.ent = doc.FindPrimitive(_id)
+        self.ent = []
+        self.save_transforms = []
+        for entid in _id:
+            ent = doc.FindPrimitive(entid)
+            self.ent.append(ent)
+            self.save_transforms.append(Matrix4x4F(ent.Transform))
+        self.cp = doc.FindPrimitive(_center)
+        self._c = self.cp.Points[0]
+        self.speed=1.0
+
+    def link(self,other):
+        self.speed = -other.speed * other.d / self.d
+
+    def get_center(self):
+        return self.cp.Points[0] * self.cp.Transform
+    
+    def rotate(self,theta):
+        for ent in self.ent:
+            ent.Transform.Translate(-self._c.X,-self._c.Y,0)
+            ent.Transform.RotZ(theta*self.speed)
+#            ent.Transform.Translate(self._c)
+        self._c = self.get_center()
+        for ent in self.ent:
+            ent.Transform.Translate(self._c)
+    
+    def reset(self):
+        for i in range (0,len(self.ent)):
+            self.ent[i].Transform = self.save_transforms[i]
+        
+
+</layer>
+    <layer name="klann-front" color="255,255,0" pen="2" visible="false">
+      <objects>
+        <circle id="43" c="-78.7387225341796,57.7835375976562,0" d="8.639999999999981">
+          <ModificationCount>302967</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="45" c="-155.552325837224,-15.5515927031186,0" d="8.6400000000000023">
+          <ModificationCount>302967</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="83" c="155.550223085535,-15.5521633472522,0" d="8.6400000000000023">
+          <ModificationCount>302971</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="109" Closed="true">
+          <ModificationCount>61</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-165.489854614195,-5.13019539724458,0</p>
+            <p>-165.336450923383,-4.98604036079414,0</p>
+          </pts>
+        </pline>
+        <circle id="138" c="78.7387225341796,57.7835375976562,0" d="8.639999999999981">
+          <ModificationCount>302971</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="19" c="-116.960328309148,0.000407056555497434,0" d="8.6400000000000023">
+          <ModificationCount>519208</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="146" c="-116.960328309148,0.000407056555497434,0" d="17.856000000000005">
+          <ModificationCount>516326</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="46" c="-178.01632501325,104.832409219489,0" d="8.6400000000000023">
+          <ModificationCount>562853</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="47" c="-278.240325562566,13.9396074101779,0" d="8.6400000000000023">
+          <ModificationCount>562853</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="133" c="-78.7387205410322,57.7835388540991,0" d="17.280000000000005">
+          <ModificationCount>302967</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="159" Closed="true">
+          <ModificationCount>562853</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.020005294673746694">-86.9124168079531,45.9281286245805,0</p>
+            <p b="0.57735026918962573">-85.9387225341796,45.3127717831602,0</p>
+            <p b="0.50878727073036556">-64.3387225341796,57.7835375976562,0</p>
+            <p b="-0.13469275092798258">-83.1564419832265,71.489147940487,0</p>
+            <p b="-0.11560692382509928">-90.7691116881528,71.1536652752057,0</p>
+            <p b="-0.11823890143959907">-160.772187124047,105.308562318531,0</p>
+            <p b="0.44611864934981132">-164.843933447905,110.650321254681,0</p>
+            <p b="0.5773502691896264">-185.21632501325,117.303175033985,0</p>
+            <p b="0.063702397395543675">-185.21632501325,92.3616434049929,0</p>
+            <p b="-0.109159739199447">-181.845224068063,90.9507835211763,0</p>
+            <p b="0.13119386793748067">-176.352859416494,88.0452246464617,0</p>
+            <p b="-0.10573003854158042">-92.4761506631763,48.2342205117102,0</p>
+          </pts>
+        </pline>
+        <circle id="169" c="-186.080324189275,0.000407056555497434,0" d="8.6400000000000023">
+          <ModificationCount>562853</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="186" Closed="true">
+          <ModificationCount>562853</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.099624446130891359">-167.015842438728,-24.2663954620476,0</p>
+            <p b="0.5773502691896254">-162.752325837224,-28.0223585176145,0</p>
+            <p b="0.40805015078274709">-141.152325837224,-15.5515927031186,0</p>
+            <p b="-0.1129683951125082">-155.248667274964,-1.15479474393449,0</p>
+            <p>-161.480110767908,0.410306479117618,0</p>
+            <p b="-0.11304551741977049">-169.678994680939,4.58594624151588,0</p>
+            <p b="0.37780896038823286">-174.612108407504,8.70902501710168,0</p>
+            <p b="0.57735026918962551">-193.280324189275,12.4711728710514,0</p>
+            <p b="0.12588177208107365">-193.280324189275,-12.4703587579404,0</p>
+            <p b="-0.11219057331903526">-186.407267529214,-14.3958809390519,0</p>
+            <p>-180.217785346342,-15.9509774632393,0</p>
+            <p b="-0.1132773363674853">-171.962933517422,-20.1400067495566,0</p>
+          </pts>
+        </pline>
+        <pline id="120" Closed="true">
+          <ModificationCount>562853</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-174.947036210808,-9.17363192805006,0</p>
+            <p b="-0.074075088485381219">-169.108716109986,-6.82728242923927,0</p>
+            <p>-164.145902502824,-5.68699349658077,0</p>
+            <p b="0.11128024916328394">-157.720356089288,-5.18499768302317,0</p>
+            <p b="-0.23928840670273735">-150.461221106921,-2.94254416741372,0</p>
+            <p>-134.838114540331,-2.13693289416107,0</p>
+            <p b="-0.081345269181340482">-132.468838306862,-3.18994455348061,0</p>
+            <p b="0.13836374729045589">-129.616561681323,-6.86834514664978,0</p>
+            <p b="0.57735026918962551">-124.160328309148,-12.4703587579404,0</p>
+            <p b="0.37143933556943942">-102.560328309148,0.000407056555498712,0</p>
+            <p b="-0.10576618491432938">-114.833838656367,14.2425291511247,0</p>
+            <p b="0.24654357583111375">-120.474566668825,16.3590448797916,0</p>
+            <p b="-0.10702127792470545">-271.826913180855,29.4482160117922,0</p>
+            <p b="0.13910741648393382">-277.818712620757,28.3334339523904,0</p>
+            <p b="0.57735026918962551">-285.440325562566,26.4103732246738,0</p>
+            <p b="0.37141242854904855">-285.440325562566,1.46884159568203,0</p>
+            <p b="-0.12806564543157878">-266.970378590305,4.97588635012507,0</p>
+            <p b="-0.085555936886995268">-261.167135328059,9.33414526854815,0</p>
+            <p b="-0.48396716893935265">-215.124315790323,19.5675045856591,0</p>
+            <p b="0.31794531058549952">-200.27677371975,2.54723351221315,0</p>
+            <p b="0.36836608942355648">-193.320257064941,-12.560393353249,0</p>
+          </pts>
+        </pline>
+        <points id="24">
+          <ModificationCount>347</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-116.960327654555,0.000407368351007165</p>
+          </pts>
+        </points>
+        <points id="25">
+          <ModificationCount>302961</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-86.4323293025045,0.000407368351007165</p>
+          </pts>
+        </points>
+        <points id="41">
+          <ModificationCount>536145</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-186.080324189275,0.000407056555497434</p>
+          </pts>
+        </points>
+        <points id="58">
+          <ModificationCount>562847</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-305.312327210515,-135.01399275805</p>
+          </pts>
+        </points>
+        <points id="59">
+          <ModificationCount>562029</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-278.240325562566,13.9396074101779</p>
+          </pts>
+        </points>
+        <points id="62">
+          <ModificationCount>562847</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-178.01632501325,104.832409219489</p>
+          </pts>
+        </points>
+        <points id="64">
+          <ModificationCount>302961</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-78.7387225341796,57.7835375976562</p>
+          </pts>
+        </points>
+        <points id="86">
+          <ModificationCount>302961</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-0.000123606216579901,0.000407368351007165</p>
+          </pts>
+        </points>
+        <pline id="111" Closed="true">
+          <ModificationCount>562898</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.29707914410722513">-300.978591622029,-135.230878123823,0</p>
+            <p b="0.25340010754710535">-175.790102923842,89.0478397432735,0</p>
+            <p b="0.15744844466064456">-161.234180284462,96.0751721647525,0</p>
+            <p b="0.36512407243482292">-158.029437251523,106,0</p>
+            <p b="0.17527701622850772">-172.121203792101,122.72460858715,0</p>
+            <p b="0.37877261937259804">-183.485281374239,120.696938456699,0</p>
+            <p b="0.83752191679528254">-309.466877272972,-136.190405621817,0</p>
+          </pts>
+        </pline>
+        <points id="12">
+          <ModificationCount>302959</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>86.4179259374941,0.00040736835099658,-1.05836760413361E-14</p>
+          </pts>
+        </points>
+        <points id="14">
+          <ModificationCount>252</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>56.2657779034659,4.77603845930313,-3.54895061991483E-14</p>
+          </pts>
+        </points>
+        <circle id="15" c="56.2657785373388,4.77603810728966,-1.4322154196638E-14" d="8.6400000000000023">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="18" c="56.2657785373388,4.77603810728966,-1.4322154196638E-14" d="17.856000000000005">
+          <ModificationCount>502264</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="21" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.099624446130891359">156.068199322565,-1.16135978710182,-2.04519842613309E-14</p>
+            <p b="-0.5773502691896254">161.593435810519,-2.48672541147133,-1.9929871309348E-14</p>
+            <p b="-0.40805015078274709">163.824673134024,-27.3282547526009,-1.72847215850917E-14</p>
+            <p b="0.1129683951125082">143.938625438842,-24.0848398127765,-1.90109685141223E-14</p>
+            <p>139.072647285755,-19.889284252683,-1.97740750436167E-14</p>
+            <p b="0.11304551741977049">130.939508180623,-15.586992637596,-2.07781155770317E-14</p>
+            <p b="-0.37780896038823286">124.728703496226,-13.9252782213428,-2.13822278183997E-14</p>
+            <p b="-0.57735026918962551">110.908954213895,-0.822966718281066,-2.36683493844881E-14</p>
+            <p b="-0.12588177208107365">131.306731030418,13.5301061563106,-2.36683493844881E-14</p>
+            <p b="0.11219057331903526">136.8366983504,9.01723512311131,-2.28266704988789E-14</p>
+            <p>141.670346999111,4.85023912690028,-2.20687025780774E-14</p>
+            <p b="0.1132773363674853">149.846644163339,0.509880874256822,-2.10578081781216E-14</p>
+          </pts>
+        </pline>
+        <circle id="22" c="125.251217866078,0.465238751070217,-2.2786632809736E-14" d="8.6400000000000023">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <points id="23">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>125.251217866078,0.465238751070238,-2.2786632809736E-14</p>
+          </pts>
+        </points>
+        <pline id="27" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>113.56744686127,-7.99659246975566,-2.14232432899995E-14</p>
+            <p b="0.074075088485381219">107.886826800629,-5.29069274935318,-2.07082789008879E-14</p>
+            <p>103.004790627115,-3.84310836498106,-2.01005295932713E-14</p>
+            <p b="-0.11128024916328394">96.623060804676,-2.94134842867573,-1.93136530967916E-14</p>
+            <p b="0.23928840670273735">89.5179121066714,-0.250530627125972,-1.84246948145255E-14</p>
+            <p>73.9754626614929,1.52787696358201,-1.65114792577365E-14</p>
+            <p b="0.081345269181340482">71.5451256555212,0.624679608322211,-1.62213361847898E-14</p>
+            <p b="-0.13836374729045589">68.4689911693791,-2.86867257770072,-1.58720445769404E-14</p>
+            <p b="-0.57735026918962551">62.673999317479,-8.11949237551635,-1.52038707713901E-14</p>
+            <p b="-0.37143933556943942">41.8938111538821,5.67412136003198,-1.25587210471338E-14</p>
+            <p b="0.10576618491432938">55.0316654405067,19.1230574794181,-1.40617429226247E-14</p>
+            <p b="-0.24654357583111375">60.7934131032899,20.8836582889814,-1.47525100590487E-14</p>
+            <p b="0.10702127792470545">212.667451496794,24.5079730750849,-3.32872145795045E-14</p>
+            <p b="-0.13910741648393382">218.578061150994,23.0216712606299,-3.40209741459978E-14</p>
+            <p b="-0.57735026918962551">226.064901704844,20.6270178580554,-3.49543217094892E-14</p>
+            <p b="-0.37141242854904855">224.509375881668,-4.26595985481435,-3.49543217094892E-14</p>
+            <p b="0.12806564543157878">206.294108013687,0.386170900602647,-3.26924802677899E-14</p>
+            <p b="0.085555936886995268">200.773973045804,5.09787580405046,-3.19818114106176E-14</p>
+            <p b="0.48396716893935265">155.45900832242,18.1828613224247,-2.63433784752367E-14</p>
+            <p b="-0.31794531058549952">139.578868685547,2.12171883303659,-2.45251390394098E-14</p>
+            <p b="-0.36836608942355648">131.693678606245,-12.5226415452099,-2.36732395898148E-14</p>
+          </pts>
+        </pline>
+        <points id="28">
+          <ModificationCount>507675</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>218.101155101529,8.62957062799142,-3.40726051347373E-14</p>
+          </pts>
+        </points>
+        <circle id="30" c="218.101155101528,8.62957062799169,-3.40726051347371E-14" d="8.6400000000000023">
+          <ModificationCount>510379</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="34" c="78.7243171760218,57.7835388540991,-9.64151182402385E-15" d="17.280000000000005">
+          <ModificationCount>302959</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="39" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.020005294673746694">89.9286479358163,48.7331883702805,-1.06424678622924E-14</p>
+            <p b="-0.57735026918962573">89.1697762773747,47.8666675182081,-1.05232286428581E-14</p>
+            <p b="-0.50878727073036556">64.9176846156047,53.6904163133663,-7.87807891860172E-15</p>
+            <p b="0.13469275092798258">79.0688450792905,72.1754096231721,-1.01825087987767E-14</p>
+            <p b="0.11560692382509928">86.4634011543257,74.0154718797731,-1.11147611677971E-14</p>
+            <p b="0.11823890143959907">143.885959198904,126.642816389455,-1.96873822643874E-14</p>
+            <p b="-0.44611864934981132">146.273215600819,132.920914312338,-2.01860109063223E-14</p>
+            <p b="-0.5773502691896264">163.917788055197,145.084954118371,-2.26808269216702E-14</p>
+            <p b="-0.063702397395543675">171.000319484216,121.17015224679,-2.26808269216702E-14</p>
+            <p b="0.109159739199447">168.168626836998,118.860095116307,-2.2267999757985E-14</p>
+            <p b="-0.13119386793748067">163.727436053391,114.514503526679,-2.15954012930029E-14</p>
+            <p b="0.10573003854158042">94.6084978456506,52.5242566926754,-1.13238062453007E-14</p>
+          </pts>
+        </pline>
+        <circle id="40" c="160.555445120619,131.083002469036,-2.17991103469181E-14" d="8.6400000000000023">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <points id="42">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>160.555445120619,131.083002469036,-2.17991103469181E-14</p>
+          </pts>
+        </points>
+        <pline id="48" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.29707914410722513">181.718189192477,-137.814228362013,-3.68580144295889E-14</p>
+            <p b="-0.25340010754710535">152.441431457302,117.364086639792,-2.15273525610668E-14</p>
+            <p b="-0.15744844466064456">141.709000550725,129.450161754614,-1.97448250260737E-14</p>
+            <p b="-0.36512407243482292">142.568864995216,139.84406470796,-1.93523701580232E-14</p>
+            <p b="-0.17527701622850772">162.010007870653,149.860669937497,-2.10780568422405E-14</p>
+            <p b="-0.37877261937259804">171.719543595065,143.617383826231,-2.24697090034822E-14</p>
+            <p b="-0.83752191679528254">189.184142389269,-141.965279936581,-3.78974952837093E-14</p>
+          </pts>
+        </pline>
+        <points id="49">
+          <ModificationCount>504969</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>185.801858381802,-139.2811807692,-3.73887264433335E-14</p>
+          </pts>
+        </points>
+        <points id="52">
+          <ModificationCount>302959</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>78.7384753217464,57.7835375976562,-9.64237885382553E-15</p>
+          </pts>
+        </points>
+      </objects>
+      <ModificationCount>7</ModificationCount>
+    </layer>
+    <layer name="klann-back" color="127,255,0" pen="2" visible="false">
+      <objects>
+        <points id="26">
+          <ModificationCount>636</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-55.9043323014961,0.000406744760288503</p>
+          </pts>
+        </points>
+        <pline id="35" Closed="true">
+          <ModificationCount>611278</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.099624446130891359">-144.088809159952,-24.2663952386409,1.40382952778611E-15</p>
+            <p b="-0.5773502691896254">-148.352325685498,-28.0223583868669,8.81716575412276E-16</p>
+            <p b="-0.40805015078274709">-169.952325964472,-15.5515930182197,-1.76343315082455E-15</p>
+            <p b="0.1129683951125082">-155.855984819568,-1.15479475119825,-3.71862205015181E-17</p>
+            <p>-149.62454135494,0.410306604343549,7.25920309564337E-16</p>
+            <p b="0.11304551741977049">-141.425657523766,4.58594654264677,1.72996084373098E-15</p>
+            <p b="-0.37780896038823286">-136.492543880394,8.70902542527723,2.33407308555137E-15</p>
+            <p b="-0.57735026918962551">-117.824328163928,12.471173675447,4.62019465335142E-15</p>
+            <p b="-0.12588177208107365">-117.824327638324,-12.4703579722192,4.62019465335142E-15</p>
+            <p b="0.11219057331903526">-124.697384262954,-14.3958802996112,3.77851576711198E-15</p>
+            <p>-130.886866417689,-15.9509769553966,3.02054784574295E-15</p>
+            <p b="0.1132773363674853">-139.141718164511,-20.1400064188082,2.00965344503039E-15</p>
+          </pts>
+        </pline>
+        <points id="56">
+          <ModificationCount>587023</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-217.184329675669,13.9396071088194</p>
+          </pts>
+        </points>
+        <points id="55">
+          <ModificationCount>562929</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-188.547440571627,-134.72106991462</p>
+          </pts>
+        </points>
+        <circle id="53" c="-55.9043323014961,0.000406744760288503,0" d="8.6400000064689984">
+          <ModificationCount>519228</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="51" c="-125.024328233375,0.000406744760288503,0" d="8.6400000064689984">
+          <ModificationCount>562873</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="50" Closed="true">
+          <ModificationCount>616523</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-113.891040383276,-9.17363138264483,0</p>
+            <p b="-0.074075088485381219">-108.05272024312,-6.82728196907502,0</p>
+            <p>-103.089906615251,-5.68699310951443,0</p>
+            <p b="0.11128024916328394">-96.6643601894226,-5.18499739132908,0</p>
+            <p b="-0.23928840670273735">-89.405225168206,-2.94254398221019,0</p>
+            <p>-73.7821185779131,-2.13693294115679,0</p>
+            <p b="-0.081345269181340482">-71.4128423583613,-3.1899446365697,0</p>
+            <p b="0.13836374729045589">-68.5605657854998,-6.86834527499523,0</p>
+            <p b="0.57735026918962551">-63.1043324927157,-12.4703589717844,0</p>
+            <p b="0.37143933556943942">-41.5043322907143,0.000406530183568429,0</p>
+            <p b="-0.10576618491432938">-53.7778424348991,14.2425288183058,0</p>
+            <p b="0.24654357583111375">-59.4185704200414,16.3590446326107,0</p>
+            <p b="-0.10702127792470545">-210.770916850349,29.4482180297372,0</p>
+            <p b="0.13910741648393382">-216.762716311349,28.3334360587856,0</p>
+            <p b="0.57735026918962551">-224.38432928752,26.4103754432001,0</p>
+            <p b="0.37141242854904855">-224.384329659178,1.46884379553387,0</p>
+            <p b="-0.12806564543157878">-205.91438262083,4.97588827737908,0</p>
+            <p b="-0.085555936886995268">-200.111139289295,9.33414711259024,0</p>
+            <p b="-0.48396716893935265">-154.068319564598,19.5675057512716,0</p>
+            <p b="0.31794531058549952">-139.220777736528,2.5472344438366,0</p>
+            <p b="0.36836608942355648">-132.264261301633,-12.5603925365973,0</p>
+          </pts>
+        </pline>
+        <pline id="65" Closed="true">
+          <ModificationCount>593122</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.30385405114176739">-135.804076785683,169.465596663803,0</p>
+            <p b="0.31863329874723184">-136.132988136111,134.493757285849,0</p>
+            <p b="-0.83752191679528165">-184.428670063325,-133.355773997636,0</p>
+            <p b="-0.43949190111505027">-191.995205977922,-137.320521237221,0</p>
+          </pts>
+        </pline>
+        <circle id="66" c="-217.184329675669,13.9396071088194,0" d="8.6400000064689984">
+          <ModificationCount>562869</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="75" Closed="true">
+          <ModificationCount>593089</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.020005294673746694">-90.4216668995563,49.3651760043824,0</p>
+            <p b="0.57735026918962573">-89.7114526475592,48.4583461971368,0</p>
+            <p b="0.50878727073036556">-65.1765048804507,52.9434703868101,0</p>
+            <p b="-0.13469275092798258">-78.2927501725499,72.1766300435483,0</p>
+            <p b="-0.11560692382509928">-85.5752809069599,74.4194039608951,0</p>
+            <p b="-0.11823890143959907">-140.025624717518,130.116330541458,0</p>
+            <p b="0.44611864934981132">-142.065030107016,136.515887743533,0</p>
+            <p b="0.5773502691896264">-159.01604052463,149.629165289984,0</p>
+            <p b="0.063702397395543675">-167.399282920799,126.138715148307,0</p>
+            <p b="-0.109159739199447">-164.698522627309,123.676857912092,0</p>
+            <p b="0.13119386793748067">-160.502304238585,119.094272055593,0</p>
+            <p b="-0.10573003854158042">-94.8865925948407,53.4071597739625,0</p>
+          </pts>
+        </pline>
+        <circle id="76" c="-78.7387225931334,57.7835376409202,0" d="8.640000006468977">
+          <ModificationCount>298708</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="78" c="-156.426552866373,135.463906592091,0" d="8.6400000064689984">
+          <ModificationCount>562918</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <points id="79">
+          <ModificationCount>562918</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-156.426552866373,135.463906592091</p>
+          </pts>
+        </points>
+        <points id="8">
+          <ModificationCount>536863</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-125.024328233375,0.000408341496597256</p>
+          </pts>
+        </points>
+        <points id="11">
+          <ModificationCount>302957</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-155.55232595369,-15.5515927147624,-1.13595970436878E-29</p>
+          </pts>
+        </points>
+        <pline id="54" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.30385405114176739">142.058816989028,136.242054633111,-1.66297716080575E-14</p>
+            <p b="-0.31863329874723184">155.549104118463,103.975200350128,-1.66700503010154E-14</p>
+            <p b="0.83752191679528165">301.269466367097,-125.897417261722,-2.25843701960405E-14</p>
+            <p b="0.43949190111505027">309.77243400072,-126.716702219623,-2.35109729917845E-14</p>
+          </pts>
+        </pline>
+        <points id="57">
+          <ModificationCount>504969</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>305.599031508179,-125.609026675673,-2.30887574494807E-14</p>
+          </pts>
+        </points>
+        <points id="63">
+          <ModificationCount>507675</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>276.072017957557,22.8774140479227,-2.65956491099687E-14</p>
+          </pts>
+        </points>
+        <points id="67">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>173.979192257348,112.525160018492,-1.91552131320538E-14</p>
+          </pts>
+        </points>
+        <circle id="68" c="173.979192257348,112.525160018492,-1.91552131320538E-14" d="8.6400000064689984">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="70" c="276.072017545502,22.8774164246871,-2.65956490845324E-14" d="8.6400000064689984">
+          <ModificationCount>510379</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="71" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.020005294673746694">87.8087339685744,46.6139432294655,-1.10722128582253E-14</p>
+            <p b="-0.57735026918962573">86.8866465901955,45.9236538338616,-1.09852395696682E-14</p>
+            <p b="-0.50878727073036556">64.3697329208733,56.6506571311402,-7.9806742770381E-15</p>
+            <p b="0.13469275092798258">82.0469820024505,71.7987654569997,-9.58689800933785E-15</p>
+            <p b="0.11560692382509928">89.6623814365694,72.0651865537224,-1.04787213502644E-14</p>
+            <p b="0.11823890143959907">156.751269257729,111.638772473228,-1.71467450500866E-14</p>
+            <p b="-0.44611864934981132">160.388695447138,117.285243711262,-1.73964919298865E-14</p>
+            <p b="-0.5773502691896264">180.17243049863,125.525306186794,-1.94723234359984E-14</p>
+            <p b="-0.063702397395543675">182.141029971368,100.661585285701,-2.04989406263966E-14</p>
+            <p b="0.109159739199447">178.891803090973,98.9890507138265,-2.01682038048407E-14</p>
+            <p b="-0.13119386793748067">173.645904721092,95.65905188636,-1.96543322347549E-14</p>
+            <p b="0.10573003854158042">93.1730939630353,49.3519783110134,-1.16189904958043E-14</p>
+          </pts>
+        </pline>
+        <pline id="72" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>175.128168448936,-8.9669666903198,-1.39462872470646E-14</p>
+            <p b="0.074075088485381219">169.110902133813,-7.12744400157816,-1.32313228531362E-14</p>
+            <p>164.068878225802,-6.41486228749498,-1.26235735429838E-14</p>
+            <p b="-0.11128024916328394">157.623932797623,-6.46308053450655,-1.18366970449988E-14</p>
+            <p b="0.23928840670273735">150.199902302592,-4.84833295139477,-1.09477387579751E-14</p>
+            <p>134.565041892759,-5.37900106441109,-9.03452319828343E-15</p>
+            <p b="0.081345269181340482">132.294278221326,-6.63037462322833,-8.74438012704109E-15</p>
+            <p b="-0.13836374729045589">129.766337852058,-10.538779719209,-8.3950885256426E-15</p>
+            <p b="-0.57735026918962551">124.808110220594,-16.5860119752823,-7.72691472981455E-15</p>
+            <p b="-0.37143933556943942">102.222610609728,-6.00417809550998,-5.08176498082099E-15</p>
+            <p b="0.10576618491432938">113.235860251196,9.23345396672112,-6.58478683144821E-15</p>
+            <p b="-0.24654357583111375">118.675376119586,11.8236505832172,-7.2755539645271E-15</p>
+            <p b="0.10702127792470545">268.358435437155,37.7820978309492,-2.58102584749752E-14</p>
+            <p b="-0.13910741648393382">274.42351409918,37.182747810479,-2.65440180440521E-14</p>
+            <p b="-0.57735026918962551">282.18144177245,35.9171630815669,-2.74773656117515E-14</p>
+            <p b="-0.37141242854904855">284.310054619374,11.066629721507,-2.7477365657265E-14</p>
+            <p b="0.12806564543157878">265.608188958103,12.9845779441718,-2.52155242074726E-14</p>
+            <p b="0.085555936886995268">259.454166883912,16.8316632759595,-2.45048553418152E-14</p>
+            <p b="0.48396716893935265">212.705975940098,23.0982030476015,-1.88664223835389E-14</p>
+            <p b="-0.31794531058549952">199.365184491353,4.87287953233655,-1.70481829774091E-14</p>
+            <p b="-0.36836608942355648">193.723395419979,-10.7733254376564,-1.61962835547448E-14</p>
+          </pts>
+        </pline>
+        <points id="73">
+          <ModificationCount>302959</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>155.53792258868,-15.5515927147624,-1.90481547488584E-14</p>
+          </pts>
+        </points>
+        <pline id="74" Closed="true">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.099624446130891359">154.686838247353,-1.17676555912466,-1.62404956707962E-14</p>
+            <p b="0.5773502691896254">149.192535163433,-2.62502864173747,-1.72847215658511E-14</p>
+            <p b="0.40805015078274709">147.515883430416,-27.5101414583936,-2.25750210505076E-14</p>
+            <p b="-0.1129683951125082">167.324648232424,-23.8240227634005,-1.91225272270148E-14</p>
+            <p>172.095844272528,-19.5209868289847,-1.75963141709221E-14</p>
+            <p b="-0.11304551741977049">180.131008122449,-15.038375215611,-1.55882331133647E-14</p>
+            <p b="0.37780896038823286">186.30320742789,-13.2385570512606,-1.43800086403643E-14</p>
+            <p b="0.57735026918962551">199.827303713202,0.168711766750931,-9.80776551447304E-15</p>
+            <p b="0.12588177208107365">179.114489704444,14.0632911691702,-9.8077654501073E-15</p>
+            <p b="-0.11219057331903526">173.686546612518,9.42821000596973,-1.1491123217617E-14</p>
+            <p>168.94703508294,5.15444756362267,-1.30070590563419E-14</p>
+            <p b="-0.1132773363674853">160.869572893622,0.632816244342393,-1.50288478469565E-14</p>
+          </pts>
+        </pline>
+        <points id="77">
+          <ModificationCount>252</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>116.570072734665,-4.77522289533824,-2.80125502143178E-14</p>
+          </pts>
+        </points>
+        <circle id="80" c="116.570072734665,-4.77522289533824,-6.84519813164556E-15" d="8.6400000064689984">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <points id="81">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>185.451991285525,1.12497042262699,-1.53105435368007E-14</p>
+          </pts>
+        </points>
+        <circle id="84" c="185.451989959508,1.12497131214604,-1.53105435368007E-14" d="8.6400000064689984">
+          <ModificationCount>507674</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+      </objects>
+      <ModificationCount>1</ModificationCount>
+    </layer>
+    <layer name="bearings" color="128,128,255" pen="2" visible="false">
+      <objects>
+        <circle id="87" c="-278.240325562566,13.9396074101779,0" d="19">
+          <ModificationCount>70</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="88" c="-278.240325562566,13.9396074101779,0" d="6">
+          <ModificationCount>70</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="89" c="-278.240325562566,13.9396074101779,0" d="10">
+          <ModificationCount>70</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="90" c="-278.240325562566,13.9396074101779,0" d="14">
+          <ModificationCount>70</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+      </objects>
+      <ModificationCount>2</ModificationCount>
+    </layer>
+    <layer name="bearing cover" color="255,255,0" pen="2" visible="false">
+      <objects>
+        <circle id="91" c="-278.240325562566,13.9396074101779,0" d="13">
+          <ModificationCount>70</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="92" c="-278.240325562566,13.9396074101779,0" d="30">
+          <ModificationCount>70</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="93" c="-278.240325562566,13.9396074101779,0" d="25">
+          <ModificationCount>70</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <points id="94">
+          <ModificationCount>69</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-265.740325562566,13.9396074101779</p>
+            <p>-271.990325562566,24.7649249574834</p>
+            <p>-284.490325562566,24.7649249574834</p>
+            <p>-290.740325562566,13.9396074101779</p>
+            <p>-284.490325562566,3.11428986287246</p>
+            <p>-271.990325562566,3.11428986287245</p>
+            <p>-265.740325562566,13.9396074101779</p>
+          </pts>
+        </points>
+      </objects>
+      <ModificationCount>2</ModificationCount>
+    </layer>
+    <layer name="gears" color="255,165,0" pen="2" visible="false">
+      <objects>
+        <pline id="16" Closed="true">
+          <ModificationCount>620</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-59.5300650607424,27.1724477650837,0</p>
+            <p>-56.9781662317079,29.7431045045106,0</p>
+            <p>-56.9401208953131,29.7789565382726,0</p>
+            <p>-56.8213225684422,29.8813322326371,0</p>
+            <p>-56.6152240435387,30.0420781250644,0</p>
+            <p>-56.3158995857905,30.2525626633248,0</p>
+            <p>-55.9180758432099,30.5037183500276,0</p>
+            <p>-55.417160077899,30.7860857556822,0</p>
+            <p>-54.8092656103196,31.0898592369241,0</p>
+            <p>-54.0912343780604,31.4049341904577,0</p>
+            <p>-53.2606565206178,31.7209556677535,0</p>
+            <p>-52.3158869120147,32.0273681706091,0</p>
+            <p b="-0.019649794698065066">-51.487282691399,32.2510480135712,0</p>
+            <p>-49.0679934841526,29.4073278542334,0</p>
+            <p>-49.0679934841526,29.4073278542334,0</p>
+            <p>-49.4215633722531,28.6252754513869,0</p>
+            <p>-49.8754118298793,27.7418164468164,0</p>
+            <p>-50.3204462968355,26.9726133042023,0</p>
+            <p>-50.7465113078494,26.3143506793832,0</p>
+            <p>-51.1437719014047,25.7629905135863,0</p>
+            <p>-51.5027601225072,25.3137963319425,0</p>
+            <p>-51.8144198707532,24.961360365493,0</p>
+            <p>-52.0701499286585,24.6996333906956,0</p>
+            <p>-52.2618450117244,24.5219571710486,0</p>
+            <p>-52.3819346887696,24.4210993764506,0</p>
+            <p>-52.4234200286082,24.3892908473316,0</p>
+            <p b="-0.036490087535986475">-55.369788363866,22.2823078529578,0</p>
+            <p>-52.4694105658454,17.5287503930685,0</p>
+            <p>-49.2480339363789,19.1850101301614,0</p>
+            <p>-49.2007717835706,19.2073507849904,0</p>
+            <p>-49.0561520313053,19.2680051543197,0</p>
+            <p>-48.8104674736611,19.3571956360695,0</p>
+            <p>-48.4607496982576,19.4648819834852,0</p>
+            <p>-48.0047854601143,19.5808109387051,0</p>
+            <p>-47.4411299303958,19.6945668156108,0</p>
+            <p>-46.7691167676404,19.7956228431551,0</p>
+            <p>-45.9888649701529,19.8733930775744,0</p>
+            <p>-45.1012824794696,19.9172846897448,0</p>
+            <p>-44.1080665161388,19.9167504324324,0</p>
+            <p b="-0.019649794698065066">-43.250896199918,19.8734298188644,0</p>
+            <p>-41.8287732910459,16.4212897514594,0</p>
+            <p>-41.8287732910459,16.4212897514594,0</p>
+            <p>-42.406705720061,15.78677282177,0</p>
+            <p>-43.1113450993428,15.086800264871,0</p>
+            <p>-43.7722948723116,14.4927678171052,0</p>
+            <p>-44.3809211152329,13.9983841874494,0</p>
+            <p>-44.9291180526538,13.5967697835467,0</p>
+            <p>-45.4093447755085,13.2804941911135,0</p>
+            <p>-45.8146595130068,13.0416158273156,0</p>
+            <p>-46.138751334089,12.8717236163096,0</p>
+            <p>-46.3759691633476,12.761980528229,0</p>
+            <p>-46.5213480057873,12.7031688165135,0</p>
+            <p>-46.5706322846355,12.6857367826486,0</p>
+            <p b="-0.036490087535986475">-50.0238886414084,11.5923547634091,0</p>
+            <p>-48.7343954757269,6.17518693590196,0</p>
+            <p>-45.1588718349711,6.75492342775403,0</p>
+            <p>-45.1070192145612,6.76156584469892,0</p>
+            <p>-44.9507344258783,6.77456161671904,0</p>
+            <p>-44.6895131517806,6.78346610201117,0</p>
+            <p>-44.3236348712051,6.77781316860222,0</p>
+            <p>-43.8541630940183,6.74716745847786,0</p>
+            <p>-43.2829423303598,6.68117658881945,0</p>
+            <p>-42.6125918029899,6.56962309459127,0</p>
+            <p>-41.8464959225463,6.40247591749437,0</p>
+            <p>-40.9887915569614,6.16994124772889,0</p>
+            <p>-40.0443521375362,5.86251252707681,0</p>
+            <p b="-0.019649794698065066">-39.2425215285188,5.5564319804672,0</p>
+            <p>-38.9567722168544,1.83379152726662,0</p>
+            <p>-38.9567722168544,1.83379152726662,0</p>
+            <p>-39.70249513394,1.40892100875202,0</p>
+            <p>-40.5889504229218,0.960953090389326,0</p>
+            <p>-41.4011171330176,0.600239372326539,0</p>
+            <p>-42.1327280306405,0.318128452077906,0</p>
+            <p>-42.778199976179,0.105572626135603,0</p>
+            <p>-43.3326572632172,-0.0468251184779136,0</p>
+            <p>-43.7919519594675,-0.148762801012255,0</p>
+            <p>-44.1526811781986,-0.210190014905017,0</p>
+            <p>-44.4122012197282,-0.241257553332763,0</p>
+            <p>-44.5686385335503,-0.252266282057893,0</p>
+            <p>-44.6208974628106,-0.253615451737745,0</p>
+            <p b="-0.036490087535986475">-48.2430130486462,-0.226368645759233,0</p>
+            <p>-48.6906290907878,-5.77687671030031,0</p>
+            <p>-45.1109556048378,-6.33041211077328,0</p>
+            <p>-45.0595882125904,-6.34011813776343,0</p>
+            <p>-44.9069366315065,-6.37605307976468,0</p>
+            <p>-44.6557487992995,-6.44830622399182,0</p>
+            <p>-44.3095247288788,-6.56674508971707,0</p>
+            <p>-43.8725005812017,-6.74096564955749,0</p>
+            <p>-43.3496296518791,-6.98024361967242,0</p>
+            <p>-42.7465603401206,-7.29348700241913,0</p>
+            <p>-42.0696111792027,-7.6891900607552,0</p>
+            <p>-41.3257430179973,-8.1753888988155,0</p>
+            <p>-40.5225284531472,-8.75961881764798,0</p>
+            <p b="-0.019649794698065066">-39.8545263180265,-9.29849800080855,0</p>
+            <p>-40.7331217371275,-12.9272408550842,0</p>
+            <p>-40.7331217371275,-12.9272408550842,0</p>
+            <p>-41.5736385874024,-13.1008756758249,0</p>
+            <p>-42.5551373661018,-13.2529887346259,0</p>
+            <p>-43.4390204770419,-13.3450745510215,0</p>
+            <p>-44.2220008572743,-13.3872977794066,0</p>
+            <p>-44.9015645196343,-13.3899885821817,0</p>
+            <p>-45.475978228469,-13.3635907259153,0</p>
+            <p>-45.9442939185078,-13.3186093565781,0</p>
+            <p>-46.3063498456101,-13.2655586496731,0</p>
+            <p>-46.5627684695636,-13.2149095313265,0</p>
+            <p>-46.7149510805285,-13.1770376659912,0</p>
+            <p>-46.7650691920953,-13.1621719053576,0</p>
+            <p b="-0.036490087535986475">-50.2014860966889,-12.01696338137,0</p>
+            <p>-52.3423955697241,-17.157489280924,0</p>
+            <p>-49.1089756204368,-18.7901126720157,0</p>
+            <p>-49.0631216546025,-18.8152170493933,0</p>
+            <p>-48.9290458814603,-18.8965651429194,0</p>
+            <p>-48.7124795062889,-19.0429032754916,0</p>
+            <p>-48.4198004703208,-19.2625344521438,0</p>
+            <p>-48.0580029206542,-19.5632759394371,0</p>
+            <p>-47.6346640752858,-19.9524188151461,0</p>
+            <p>-47.1579086052043,-20.4366896416131,0</p>
+            <p>-46.6363706642649,-21.022214408813,0</p>
+            <p>-46.0791537058918,-21.7144848853523,0</p>
+            <p>-45.4957882335495,-22.5183275073407,0</p>
+            <p b="-0.019649794698065066">-45.0270032755553,-23.2372560780124,0</p>
+            <p>-46.9839403842664,-26.4168946998485,0</p>
+            <p>-46.9839403842664,-26.4168946998485,0</p>
+            <p>-47.8369755222005,-26.3222972367763,0</p>
+            <p>-48.817441851654,-26.1636655499862,0</p>
+            <p>-49.6865207261641,-25.978109463406,0</p>
+            <p>-50.4442270140437,-25.7763118961468,0</p>
+            <p>-51.0913619671545,-25.5688742812313,0</p>
+            <p>-51.6295044817897,-25.3662648301809,0</p>
+            <p>-52.0609991629288,-25.1787674988064,0</p>
+            <p>-52.3889412416654,-25.0164318439217,0</p>
+            <p>-52.617158406557,-24.8890239573976,0</p>
+            <p>-52.7501896203845,-24.8059786600498,0</p>
+            <p>-52.7932610043045,-24.7763531333294,0</p>
+            <p b="-0.036490087535986475">-55.7075987981096,-22.6252838807974,0</p>
+            <p>-59.3322345662246,-26.852637124166,0</p>
+            <p>-56.7615778267977,-29.4045359532006,0</p>
+            <p>-56.7257257930358,-29.4425812895954,0</p>
+            <p>-56.6233500986712,-29.5613796164663,0</p>
+            <p>-56.4626042062439,-29.7674781413697,0</p>
+            <p>-56.2521196679835,-30.066802599118,0</p>
+            <p>-56.0009639812807,-30.4646263416986,0</p>
+            <p>-55.7185965756261,-30.9655421070095,0</p>
+            <p>-55.4148230943842,-31.5734365745888,0</p>
+            <p>-55.0997481408506,-32.291467806848,0</p>
+            <p>-54.7837266635548,-33.1220456642907,0</p>
+            <p>-54.4773141606992,-34.0668152728938,0</p>
+            <p b="-0.019649794698065066">-54.2536343177371,-34.8954194935095,0</p>
+            <p>-57.0973544770749,-37.3147087007558,0</p>
+            <p>-57.0973544770749,-37.3147087007558,0</p>
+            <p>-57.8794068799215,-36.9611388126554,0</p>
+            <p>-58.7628658844919,-36.5072903550292,0</p>
+            <p>-59.532069027106,-36.062255888073,0</p>
+            <p>-60.1903316519251,-35.6361908770591,0</p>
+            <p>-60.741691817722,-35.2389302835037,0</p>
+            <p>-61.1908859993658,-34.8799420624013,0</p>
+            <p>-61.5433219658153,-34.5682823141552,0</p>
+            <p>-61.8050489406128,-34.3125522562499,0</p>
+            <p>-61.9827251602597,-34.1208571731841,0</p>
+            <p>-62.0835829548577,-34.0007674961388,0</p>
+            <p>-62.1153914839767,-33.9592821563002,0</p>
+            <p b="-0.036490087535986475">-64.2223744783506,-31.0129138210427,0</p>
+            <p>-68.9759319382399,-33.913291619063,0</p>
+            <p>-67.3196722011469,-37.1346682485296,0</p>
+            <p>-67.297331546318,-37.1819304013378,0</p>
+            <p>-67.2366771769887,-37.3265501536032,0</p>
+            <p>-67.1474866952388,-37.5722347112474,0</p>
+            <p>-67.0398003478231,-37.9219524866508,0</p>
+            <p>-66.9238713926032,-38.3779167247942,0</p>
+            <p>-66.8101155156975,-38.9415722545127,0</p>
+            <p>-66.7090594881532,-39.613585417268,0</p>
+            <p>-66.6312892537339,-40.3938372147556,0</p>
+            <p>-66.5873976415635,-41.2814197054389,0</p>
+            <p>-66.587931898876,-42.2746356687697,0</p>
+            <p b="-0.019649794698065066">-66.6312525124439,-43.1318059849905,0</p>
+            <p>-70.083392579849,-44.5539288938625,0</p>
+            <p>-70.083392579849,-44.5539288938625,0</p>
+            <p>-70.7179095095383,-43.9759964648475,0</p>
+            <p>-71.4178820664373,-43.2713570855657,0</p>
+            <p>-72.0119145142031,-42.6104073125969,0</p>
+            <p>-72.506298143859,-42.0017810696756,0</p>
+            <p>-72.9079125477616,-41.4535841322547,0</p>
+            <p>-73.2241881401948,-40.9733574094,0</p>
+            <p>-73.4630665039927,-40.5680426719016,0</p>
+            <p>-73.6329587149987,-40.2439508508195,0</p>
+            <p>-73.7427018030793,-40.0067330215609,0</p>
+            <p>-73.8015135147948,-39.8613541791212,0</p>
+            <p>-73.8189455486597,-39.812069900273,0</p>
+            <p b="-0.036490087535986475">-74.9123275678992,-36.3588135435001,0</p>
+            <p>-80.3294953954064,-37.6483067091816,0</p>
+            <p>-79.7497589035543,-41.2238303499373,0</p>
+            <p>-79.7431164866094,-41.2756829703473,0</p>
+            <p>-79.7301207145893,-41.4319677590302,0</p>
+            <p>-79.7212162292971,-41.6931890331278,0</p>
+            <p>-79.7268691627061,-42.0590673137034,0</p>
+            <p>-79.7575148728305,-42.5285390908902,0</p>
+            <p>-79.8235057424889,-43.0997598545487,0</p>
+            <p>-79.9350592367171,-43.7701103819186,0</p>
+            <p>-80.1022064138139,-44.5362062623621,0</p>
+            <p>-80.3347410835794,-45.3939106279471,0</p>
+            <p>-80.6421698042315,-46.3383500473723,0</p>
+            <p b="-0.019649794698065066">-80.9482503508411,-47.1401806563896,0</p>
+            <p>-84.6708908040417,-47.4259299680541,0</p>
+            <p>-84.6708908040417,-47.4259299680541,0</p>
+            <p>-85.0957613225563,-46.6802070509685,0</p>
+            <p>-85.543729240919,-45.7937517619864,0</p>
+            <p>-85.9044429589818,-44.9815850518908,0</p>
+            <p>-86.1865538792304,-44.249974154268,0</p>
+            <p>-86.3991097051727,-43.6045022087294,0</p>
+            <p>-86.5515074497862,-43.0500449216912,0</p>
+            <p>-86.6534451323206,-42.590750225441,0</p>
+            <p>-86.7148723462133,-42.2300210067099,0</p>
+            <p>-86.7459398846411,-41.9705009651803,0</p>
+            <p>-86.7569486133662,-41.8140636513582,0</p>
+            <p>-86.7582977830461,-41.7618047220979,0</p>
+            <p b="-0.036490087535986475">-86.7310509770675,-38.1396891362623,0</p>
+            <p>-92.2815590416086,-37.6920730941207,0</p>
+            <p>-92.8350944420816,-41.2717465800706,0</p>
+            <p>-92.8448004690718,-41.323113972318,0</p>
+            <p>-92.880735411073,-41.475765553402,0</p>
+            <p>-92.9529885553001,-41.726953385609,0</p>
+            <p>-93.0714274210254,-42.0731774560297,0</p>
+            <p>-93.2456479808658,-42.5102016037067,0</p>
+            <p>-93.4849259509807,-43.0330725330294,0</p>
+            <p>-93.7981693337274,-43.6361418447878,0</p>
+            <p>-94.1938723920635,-44.3130910057058,0</p>
+            <p>-94.6800712301238,-45.0569591669112,0</p>
+            <p>-95.2643011489563,-45.8601737317613,0</p>
+            <p b="-0.019649794698065066">-95.8031803321169,-46.528175866882,0</p>
+            <p>-99.4319231863925,-45.649580447781,0</p>
+            <p>-99.4319231863925,-45.649580447781,0</p>
+            <p>-99.6055580071332,-44.809063597506,0</p>
+            <p>-99.7576710659343,-43.8275648188066,0</p>
+            <p>-99.8497568823298,-42.9436817078666,0</p>
+            <p>-99.8919801107149,-42.1607013276342,0</p>
+            <p>-99.8946709134901,-41.4811376652742,0</p>
+            <p>-99.8682730572236,-40.9067239564395,0</p>
+            <p>-99.8232916878864,-40.4384082664007,0</p>
+            <p>-99.7702409809815,-40.0763523392984,0</p>
+            <p>-99.7195918626348,-39.8199337153448,0</p>
+            <p>-99.6817199972996,-39.66775110438,0</p>
+            <p>-99.666854236666,-39.6176329928132,0</p>
+            <p b="-0.036490087535986475">-98.5216457126783,-36.1812160882196,0</p>
+            <p>-103.662171612232,-34.0403066151844,0</p>
+            <p>-105.294795003324,-37.2737265644717,0</p>
+            <p>-105.319899380702,-37.319580530306,0</p>
+            <p>-105.401247474228,-37.4536563034482,0</p>
+            <p>-105.5475856068,-37.6702226786195,0</p>
+            <p>-105.767216783452,-37.9629017145876,0</p>
+            <p>-106.067958270745,-38.3246992642542,0</p>
+            <p>-106.457101146454,-38.7480381096226,0</p>
+            <p>-106.941371972921,-39.2247935797041,0</p>
+            <p>-107.526896740121,-39.7463315206436,0</p>
+            <p>-108.219167216661,-40.3035484790167,0</p>
+            <p>-109.023009838649,-40.8869139513589,0</p>
+            <p b="-0.019649794698065066">-109.741938409321,-41.3556989093531,0</p>
+            <p>-112.921577031157,-39.398761800642,0</p>
+            <p>-112.921577031157,-39.398761800642,0</p>
+            <p>-112.826979568085,-38.545726662708,0</p>
+            <p>-112.668347881295,-37.5652603332545,0</p>
+            <p>-112.482791794714,-36.6961814587444,0</p>
+            <p>-112.280994227455,-35.9384751708648,0</p>
+            <p>-112.07355661254,-35.291340217754,0</p>
+            <p>-111.870947161489,-34.7531977031188,0</p>
+            <p>-111.683449830115,-34.3217030219796,0</p>
+            <p>-111.52111417523,-33.993760943243,0</p>
+            <p>-111.393706288706,-33.7655437783515,0</p>
+            <p>-111.310660991358,-33.632512564524,0</p>
+            <p>-111.281035464638,-33.5894411806039,0</p>
+            <p b="-0.036490087535986475">-109.129966212106,-30.6751033867989,0</p>
+            <p>-113.357319455474,-27.0504676186838,0</p>
+            <p>-115.909218284509,-29.6211243581108,0</p>
+            <p>-115.947263620904,-29.6569763918727,0</p>
+            <p>-116.066061947775,-29.7593520862373,0</p>
+            <p>-116.272160472678,-29.9200979786646,0</p>
+            <p>-116.571484930426,-30.130582516925,0</p>
+            <p>-116.969308673007,-30.3817382036278,0</p>
+            <p>-117.470224438318,-30.6641056092823,0</p>
+            <p>-118.078118905897,-30.9678790905243,0</p>
+            <p>-118.796150138156,-31.2829540440579,0</p>
+            <p>-119.626727995599,-31.5989755213537,0</p>
+            <p>-120.571497604202,-31.9053880242093,0</p>
+            <p b="-0.019649794698065066">-121.400101824818,-32.1290678671713,0</p>
+            <p>-123.819391032064,-29.2853477078335,0</p>
+            <p>-123.819391032064,-29.2853477078335,0</p>
+            <p>-123.465821143964,-28.503295304987,0</p>
+            <p>-123.011972686337,-27.6198363004166,0</p>
+            <p>-122.566938219381,-26.8506331578025,0</p>
+            <p>-122.140873208367,-26.1923705329834,0</p>
+            <p>-121.743612614812,-25.6410103671864,0</p>
+            <p>-121.38462439371,-25.1918161855426,0</p>
+            <p>-121.072964645464,-24.8393802190931,0</p>
+            <p>-120.817234587558,-24.5776532442957,0</p>
+            <p>-120.625539504492,-24.3999770246487,0</p>
+            <p>-120.505449827447,-24.2991192300507,0</p>
+            <p>-120.463964487609,-24.2673107009317,0</p>
+            <p b="-0.036490087535986475">-117.517596152351,-22.1603277065579,0</p>
+            <p>-120.417973950371,-17.4067702466686,0</p>
+            <p>-123.639350579838,-19.0630299837616,0</p>
+            <p>-123.686612732646,-19.0853706385905,0</p>
+            <p>-123.831232484911,-19.1460250079198,0</p>
+            <p>-124.076917042556,-19.2352154896696,0</p>
+            <p>-124.426634817959,-19.3429018370853,0</p>
+            <p>-124.882599056103,-19.4588307923052,0</p>
+            <p>-125.446254585821,-19.572586669211,0</p>
+            <p>-126.118267748576,-19.6736426967552,0</p>
+            <p>-126.898519546064,-19.7514129311746,0</p>
+            <p>-127.786102036747,-19.7953045433449,0</p>
+            <p>-128.779318000078,-19.7947702860325,0</p>
+            <p b="-0.019649794698065066">-129.636488316299,-19.7514496724646,0</p>
+            <p>-131.058611225171,-16.2993096050595,0</p>
+            <p>-131.058611225171,-16.2993096050595,0</p>
+            <p>-130.480678796156,-15.6647926753702,0</p>
+            <p>-129.776039416874,-14.9648201184712,0</p>
+            <p>-129.115089643905,-14.3707876707054,0</p>
+            <p>-128.506463400984,-13.8764040410495,0</p>
+            <p>-127.958266463563,-13.4747896371469,0</p>
+            <p>-127.478039740708,-13.1585140447137,0</p>
+            <p>-127.07272500321,-12.9196356809158,0</p>
+            <p>-126.748633182128,-12.7497434699097,0</p>
+            <p>-126.511415352869,-12.6400003818292,0</p>
+            <p>-126.36603651043,-12.5811886701136,0</p>
+            <p>-126.316752231581,-12.5637566362488,0</p>
+            <p b="-0.036490087535986475">-122.863495874808,-11.4703746170093,0</p>
+            <p>-124.15298904049,-6.05320678950211,0</p>
+            <p>-127.728512681246,-6.63294328135418,0</p>
+            <p>-127.780365301656,-6.63958569829906,0</p>
+            <p>-127.936650090339,-6.65258147031919,0</p>
+            <p>-128.197871364436,-6.66148595561132,0</p>
+            <p>-128.563749645012,-6.65583302220237,0</p>
+            <p>-129.033221422198,-6.625187312078,0</p>
+            <p>-129.604442185857,-6.55919644241959,0</p>
+            <p>-130.274792713227,-6.44764294819142,0</p>
+            <p>-131.04088859367,-6.28049577109451,0</p>
+            <p>-131.898592959255,-6.04796110132906,0</p>
+            <p>-132.843032378681,-5.74053238067695,0</p>
+            <p b="-0.019649794698065066">-133.644862987698,-5.43445183406735,0</p>
+            <p>-133.930612299362,-1.71181138086677,0</p>
+            <p>-133.930612299362,-1.71181138086677,0</p>
+            <p>-133.184889382277,-1.28694086235217,0</p>
+            <p>-132.298434093295,-0.838972943989475,0</p>
+            <p>-131.486267383199,-0.478259225926691,0</p>
+            <p>-130.754656485576,-0.196148305678055,0</p>
+            <p>-130.109184540038,0.016407520264245,0</p>
+            <p>-129.554727253,0.168805264877762,0</p>
+            <p>-129.095432556749,0.270742947412106,0</p>
+            <p>-128.734703338018,0.332170161304868,0</p>
+            <p>-128.475183296489,0.363237699732611,0</p>
+            <p>-128.318745982666,0.374246428457744,0</p>
+            <p>-128.266487053406,0.375595598137592,0</p>
+            <p b="-0.036490087535986475">-124.644371467571,0.348348792159081,0</p>
+            <p>-124.196755425429,5.89885685670017,0</p>
+            <p>-127.776428911379,6.45239225717313,0</p>
+            <p>-127.827796303626,6.46209828416328,0</p>
+            <p>-127.98044788471,6.49803322616453,0</p>
+            <p>-128.231635716917,6.57028637039167,0</p>
+            <p>-128.577859787338,6.68872523611692,0</p>
+            <p>-129.014883935015,6.86294579595734,0</p>
+            <p>-129.537754864338,7.10222376607227,0</p>
+            <p>-130.140824176096,7.41546714881899,0</p>
+            <p>-130.817773337014,7.81117020715506,0</p>
+            <p>-131.56164149822,8.29736904521533,0</p>
+            <p>-132.36485606307,8.88159896404783,0</p>
+            <p b="-0.019649794698065066">-133.03285819819,9.4204781472084,0</p>
+            <p>-132.154262779089,13.0492210014841,0</p>
+            <p>-132.154262779089,13.0492210014841,0</p>
+            <p>-131.313745928814,13.2228558222247,0</p>
+            <p>-130.332247150115,13.3749688810258,0</p>
+            <p>-129.448364039175,13.4670546974213,0</p>
+            <p>-128.665383658942,13.5092779258064,0</p>
+            <p>-127.985819996583,13.5119687285816,0</p>
+            <p>-127.411406287748,13.4855708723152,0</p>
+            <p>-126.943090597709,13.4405895029779,0</p>
+            <p>-126.581034670607,13.387538796073,0</p>
+            <p>-126.324616046653,13.3368896777263,0</p>
+            <p>-126.172433435688,13.2990178123911,0</p>
+            <p>-126.122315324122,13.2841520517575,0</p>
+            <p b="-0.036490087535986475">-122.685898419528,12.1389435277698,0</p>
+            <p>-120.544988946493,17.2794694273238,0</p>
+            <p>-123.77840889578,18.9120928184156,0</p>
+            <p>-123.824262861614,18.9371971957931,0</p>
+            <p>-123.958338634757,19.0185452893192,0</p>
+            <p>-124.174905009928,19.1648834218914,0</p>
+            <p>-124.467584045896,19.3845145985437,0</p>
+            <p>-124.829381595563,19.685256085837,0</p>
+            <p>-125.252720440931,20.074398961546,0</p>
+            <p>-125.729475911012,20.5586697880129,0</p>
+            <p>-126.251013851952,21.1441945552129,0</p>
+            <p>-126.808230810325,21.8364650317522,0</p>
+            <p>-127.391596282667,22.6403076537405,0</p>
+            <p b="-0.019649794698065066">-127.860381240661,23.3592362244123,0</p>
+            <p>-125.90344413195,26.5388748462484,0</p>
+            <p>-125.90344413195,26.5388748462484,0</p>
+            <p>-125.050408994016,26.4442773831761,0</p>
+            <p>-124.069942664563,26.285645696386,0</p>
+            <p>-123.200863790053,26.1000896098059,0</p>
+            <p>-122.443157502173,25.8982920425466,0</p>
+            <p>-121.796022549062,25.6908544276311,0</p>
+            <p>-121.257880034427,25.4882449765808,0</p>
+            <p>-120.826385353288,25.3007476452063,0</p>
+            <p>-120.498443274551,25.1384119903216,0</p>
+            <p>-120.27022610966,25.0110041037974,0</p>
+            <p>-120.137194895832,24.9279588064496,0</p>
+            <p>-120.094123511912,24.8983332797292,0</p>
+            <p b="-0.036490087535986475">-117.179785718107,22.7472640271973,0</p>
+            <p>-113.555149949992,26.9746172705659,0</p>
+            <p>-116.125806689419,29.5265160996004,0</p>
+            <p>-116.161658723181,29.5645614359952,0</p>
+            <p>-116.264034417546,29.6833597628661,0</p>
+            <p>-116.424780309973,29.8894582877696,0</p>
+            <p>-116.635264848233,30.1887827455178,0</p>
+            <p>-116.886420534936,30.5866064880984,0</p>
+            <p>-117.168787940591,31.0875222534093,0</p>
+            <p>-117.472561421833,31.6954167209887,0</p>
+            <p>-117.787636375366,32.4134479532479,0</p>
+            <p>-118.103657852662,33.2440258106905,0</p>
+            <p>-118.410070355518,34.1887954192937,0</p>
+            <p b="-0.019649794698065066">-118.63375019848,35.0173996399094,0</p>
+            <p>-115.790030039142,37.4366888471557,0</p>
+            <p>-115.790030039142,37.4366888471557,0</p>
+            <p>-115.007977636295,37.0831189590552,0</p>
+            <p>-114.124518631725,36.629270501429,0</p>
+            <p>-113.355315489111,36.1842360344729,0</p>
+            <p>-112.697052864292,35.7581710234589,0</p>
+            <p>-112.145692698495,35.3609104299036,0</p>
+            <p>-111.696498516851,35.0019222088011,0</p>
+            <p>-111.344062550401,34.6902624605551,0</p>
+            <p>-111.082335575604,34.4345324026498,0</p>
+            <p>-110.904659355957,34.2428373195839,0</p>
+            <p>-110.803801561359,34.1227476425387,0</p>
+            <p>-110.77199303224,34.0812623027001,0</p>
+            <p b="-0.036490087535986475">-108.665010037866,31.1348939674423,0</p>
+            <p>-103.911452577977,34.0352717654629,0</p>
+            <p>-105.56771231507,37.2566483949294,0</p>
+            <p>-105.590052969899,37.3039105477377,0</p>
+            <p>-105.650707339228,37.448530300003,0</p>
+            <p>-105.739897820978,37.6942148576472,0</p>
+            <p>-105.847584168394,38.0439326330507,0</p>
+            <p>-105.963513123614,38.499896871194,0</p>
+            <p>-106.077269000519,39.0635524009125,0</p>
+            <p>-106.178325028064,39.7355655636679,0</p>
+            <p>-106.256095262483,40.5158173611554,0</p>
+            <p>-106.299986874653,41.4033998518387,0</p>
+            <p>-106.299452617341,42.3966158151695,0</p>
+            <p b="-0.019649794698065066">-106.256132003773,43.2537861313903,0</p>
+            <p>-102.803991936368,44.6759090402624,0</p>
+            <p>-102.803991936368,44.6759090402624,0</p>
+            <p>-102.169475006679,44.0979766112473,0</p>
+            <p>-101.46950244978,43.3933372319656,0</p>
+            <p>-100.875470002014,42.7323874589968,0</p>
+            <p>-100.381086372358,42.1237612160755,0</p>
+            <p>-99.9794719684552,41.5755642786546,0</p>
+            <p>-99.663196376022,41.0953375557999,0</p>
+            <p>-99.4243180122241,40.6900228183015,0</p>
+            <p>-99.254425801218,40.3659309972193,0</p>
+            <p>-99.1446827131375,40.1287131679607,0</p>
+            <p>-99.085871001422,39.983334325521,0</p>
+            <p>-99.0684389675571,39.9340500466728,0</p>
+            <p b="-0.036490087535986475">-97.9750569483176,36.4807936898999,0</p>
+            <p>-92.5578891208104,37.7702868555814,0</p>
+            <p>-93.1376256126625,41.3458104963372,0</p>
+            <p>-93.1442680296074,41.3976631167472,0</p>
+            <p>-93.1572638016275,41.55394790543,0</p>
+            <p>-93.1661682869196,41.8151691795277,0</p>
+            <p>-93.1605153535107,42.1810474601033,0</p>
+            <p>-93.1298696433863,42.65051923729,0</p>
+            <p>-93.0638787737279,43.2217400009486,0</p>
+            <p>-92.9523252794997,43.8920905283184,0</p>
+            <p>-92.7851781024028,44.658186408762,0</p>
+            <p>-92.5526434326374,45.5158907743469,0</p>
+            <p>-92.2452147119853,46.4603301937722,0</p>
+            <p b="-0.019649794698065066">-91.9391341653757,47.2621608027895,0</p>
+            <p>-88.2164937121751,47.5479101144539,0</p>
+            <p>-88.2164937121751,47.5479101144539,0</p>
+            <p>-87.7916231936605,46.8021871973683,0</p>
+            <p>-87.3436552752978,45.9157319083866,0</p>
+            <p>-86.982941557235,45.1035651982907,0</p>
+            <p>-86.7008306369864,44.3719543006678,0</p>
+            <p>-86.4882748110441,43.7264823551293,0</p>
+            <p>-86.3358770664306,43.1720250680911,0</p>
+            <p>-86.2339393838962,42.7127303718408,0</p>
+            <p>-86.1725121700035,42.3520011531097,0</p>
+            <p>-86.1414446315757,42.0924811115802,0</p>
+            <p>-86.1304359028506,41.936043797758,0</p>
+            <p>-86.1290867331707,41.8837848684978,0</p>
+            <p b="-0.036490087535986475">-86.1563335391492,38.2616692826621,0</p>
+            <p>-80.6058254746082,37.8140532405206,0</p>
+            <p>-80.0522900741352,41.3937267264705,0</p>
+            <p>-80.0425840471451,41.4450941187179,0</p>
+            <p>-80.0066491051438,41.5977456998018,0</p>
+            <p>-79.9343959609166,41.8489335320088,0</p>
+            <p>-79.8159570951914,42.1951576024295,0</p>
+            <p>-79.641736535351,42.6321817501066,0</p>
+            <p>-79.402458565236,43.1550526794292,0</p>
+            <p>-79.0892151824893,43.7581219911877,0</p>
+            <p>-78.6935121241533,44.4350711521056,0</p>
+            <p>-78.207313286093,45.178939313311,0</p>
+            <p>-77.6230833672605,45.9821538781611,0</p>
+            <p b="-0.019649794698065066">-77.0842041840999,46.6501560132818,0</p>
+            <p>-73.4554613298243,45.7715605941809,0</p>
+            <p>-73.4554613298243,45.7715605941809,0</p>
+            <p>-73.2818265090836,44.9310437439059,0</p>
+            <p>-73.1297134502826,43.9495449652065,0</p>
+            <p>-73.037627633887,43.0656618542664,0</p>
+            <p>-72.9954044055019,42.282681474034,0</p>
+            <p>-72.9927136027267,41.603117811674,0</p>
+            <p>-73.0191114589932,41.0287041028393,0</p>
+            <p>-73.0640928283304,40.5603884128005,0</p>
+            <p>-73.1171435352353,40.1983324856982,0</p>
+            <p>-73.167792653582,39.9419138617447,0</p>
+            <p>-73.2056645189172,39.7897312507798,0</p>
+            <p>-73.2205302795508,39.739613139213,0</p>
+            <p b="-0.036490087535986475">-74.3657388035385,36.3031962346194,0</p>
+            <p>-69.2252129039845,34.1622867615842,0</p>
+            <p>-67.5925895128927,37.3957067108715,0</p>
+            <p>-67.5674851355152,37.4415606767058,0</p>
+            <p>-67.4861370419891,37.5756364498481,0</p>
+            <p>-67.3397989094169,37.7922028250194,0</p>
+            <p>-67.1201677327646,38.0848818609875,0</p>
+            <p>-66.8194262454714,38.4466794106541,0</p>
+            <p>-66.4302833697624,38.8700182560225,0</p>
+            <p>-65.9460125432954,39.346773726104,0</p>
+            <p>-65.3604877760954,39.8683116670435,0</p>
+            <p>-64.6682172995561,40.4255286254165,0</p>
+            <p>-63.8643746775678,41.0088940977588,0</p>
+            <p b="-0.019649794698065066">-63.1454461068961,41.477679055753,0</p>
+            <p>-59.96580748506,39.5207419470419,0</p>
+            <p>-59.96580748506,39.5207419470419,0</p>
+            <p>-60.0604049481322,38.6677068091078,0</p>
+            <p>-60.2190366349223,37.6872404796544,0</p>
+            <p>-60.4045927215024,36.8181616051442,0</p>
+            <p>-60.6063902887617,36.0604553172646,0</p>
+            <p>-60.8138279036772,35.4133203641538,0</p>
+            <p>-61.0164373547275,34.8751778495186,0</p>
+            <p>-61.2039346861021,34.4436831683795,0</p>
+            <p>-61.3662703409868,34.1157410896429,0</p>
+            <p>-61.4936782275109,33.8875239247513,0</p>
+            <p>-61.5767235248587,33.7544927109238,0</p>
+            <p>-61.6063490515791,33.7114213270038,0</p>
+            <p b="-0.036490087535986475">-63.757418304111,30.7970835331987,0</p>
+          </pts>
+        </pline>
+        <pline id="13" Closed="true">
+          <ModificationCount>622</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>26.9021406355454,27.1724477650837,0</p>
+            <p>29.4540394645799,29.7431045045106,0</p>
+            <p>29.4920848009747,29.7789565382726,0</p>
+            <p>29.6108831278456,29.8813322326371,0</p>
+            <p>29.8169816527491,30.0420781250644,0</p>
+            <p>30.1163061104973,30.2525626633248,0</p>
+            <p>30.5141298530779,30.5037183500276,0</p>
+            <p>31.0150456183888,30.7860857556822,0</p>
+            <p>31.6229400859682,31.0898592369241,0</p>
+            <p>32.3409713182274,31.4049341904577,0</p>
+            <p>33.17154917567,31.7209556677535,0</p>
+            <p>34.1163187842731,32.0273681706091,0</p>
+            <p b="-0.019649794698065066">34.9449230048888,32.2510480135712,0</p>
+            <p>37.3642122121352,29.4073278542334,0</p>
+            <p>37.3642122121352,29.4073278542334,0</p>
+            <p>37.0106423240347,28.6252754513869,0</p>
+            <p>36.5567938664085,27.7418164468164,0</p>
+            <p>36.1117593994523,26.9726133042023,0</p>
+            <p>35.6856943884384,26.3143506793832,0</p>
+            <p>35.2884337948831,25.7629905135863,0</p>
+            <p>34.9294455737806,25.3137963319425,0</p>
+            <p>34.6177858255346,24.961360365493,0</p>
+            <p>34.3620557676293,24.6996333906956,0</p>
+            <p>34.1703606845634,24.5219571710486,0</p>
+            <p>34.0502710075182,24.4210993764506,0</p>
+            <p>34.0087856676796,24.3892908473316,0</p>
+            <p b="-0.036490087535986475">31.0624173324218,22.2823078529577,0</p>
+            <p>33.9627951304423,17.5287503930685,0</p>
+            <p>37.1841717599089,19.1850101301614,0</p>
+            <p>37.2314339127172,19.2073507849903,0</p>
+            <p>37.3760536649825,19.2680051543197,0</p>
+            <p>37.6217382226267,19.3571956360695,0</p>
+            <p>37.9714559980302,19.4648819834852,0</p>
+            <p>38.4274202361735,19.5808109387051,0</p>
+            <p>38.991075765892,19.6945668156108,0</p>
+            <p>39.6630889286474,19.7956228431551,0</p>
+            <p>40.4433407261349,19.8733930775744,0</p>
+            <p>41.3309232168182,19.9172846897448,0</p>
+            <p>42.324139180149,19.9167504324324,0</p>
+            <p b="-0.019649794698065066">43.1813094963698,19.8734298188644,0</p>
+            <p>44.6034324052419,16.4212897514594,0</p>
+            <p>44.6034324052419,16.4212897514594,0</p>
+            <p>44.0254999762268,15.78677282177,0</p>
+            <p>43.320860596945,15.086800264871,0</p>
+            <p>42.6599108239762,14.4927678171052,0</p>
+            <p>42.0512845810549,13.9983841874494,0</p>
+            <p>41.503087643634,13.5967697835467,0</p>
+            <p>41.0228609207793,13.2804941911135,0</p>
+            <p>40.617546183281,13.0416158273156,0</p>
+            <p>40.2934543621988,12.8717236163096,0</p>
+            <p>40.0562365329402,12.761980528229,0</p>
+            <p>39.9108576905005,12.7031688165135,0</p>
+            <p>39.8615734116523,12.6857367826486,0</p>
+            <p b="-0.036490087535986475">36.4083170548794,11.5923547634091,0</p>
+            <p>37.6978102205609,6.17518693590195,0</p>
+            <p>41.2733338613167,6.75492342775402,0</p>
+            <p>41.3251864817266,6.76156584469891,0</p>
+            <p>41.4814712704095,6.77456161671903,0</p>
+            <p>41.7426925445071,6.78346610201116,0</p>
+            <p>42.1085708250827,6.77781316860221,0</p>
+            <p>42.5780426022695,6.74716745847785,0</p>
+            <p>43.149263365928,6.68117658881944,0</p>
+            <p>43.8196138932979,6.56962309459127,0</p>
+            <p>44.5857097737415,6.40247591749436,0</p>
+            <p>45.4434141393264,6.16994124772888,0</p>
+            <p>46.3878535587516,5.8625125270768,0</p>
+            <p b="-0.019649794698065066">47.189684167769,5.55643198046719,0</p>
+            <p>47.4754334794334,1.83379152726661,0</p>
+            <p>47.4754334794334,1.83379152726661,0</p>
+            <p>46.7297105623478,1.40892100875202,0</p>
+            <p>45.843255273366,0.960953090389318,0</p>
+            <p>45.0310885632702,0.600239372326531,0</p>
+            <p>44.2994776656473,0.318128452077898,0</p>
+            <p>43.6540057201087,0.105572626135596,0</p>
+            <p>43.0995484330706,-0.0468251184779214,0</p>
+            <p>42.6402537368203,-0.148762801012262,0</p>
+            <p>42.2795245180892,-0.210190014905025,0</p>
+            <p>42.0200044765596,-0.241257553332771,0</p>
+            <p>41.8635671627375,-0.2522662820579,0</p>
+            <p>41.8113082334772,-0.253615451737752,0</p>
+            <p b="-0.036490087535986475">38.1891926476416,-0.226368645759241,0</p>
+            <p>37.7415766055,-5.77687671030032,0</p>
+            <p>41.32125009145,-6.33041211077328,0</p>
+            <p>41.3726174836974,-6.34011813776344,0</p>
+            <p>41.5252690647813,-6.37605307976469,0</p>
+            <p>41.7764568969883,-6.44830622399183,0</p>
+            <p>42.122680967409,-6.56674508971707,0</p>
+            <p>42.5597051150861,-6.74096564955749,0</p>
+            <p>43.0825760444087,-6.98024361967243,0</p>
+            <p>43.6856453561672,-7.29348700241914,0</p>
+            <p>44.3625945170851,-7.68919006075521,0</p>
+            <p>45.1064626782905,-8.17538889881551,0</p>
+            <p>45.9096772431406,-8.75961881764799,0</p>
+            <p b="-0.019649794698065066">46.5776793782613,-9.29849800080856,0</p>
+            <p>45.6990839591603,-12.9272408550842,0</p>
+            <p>45.6990839591603,-12.9272408550842,0</p>
+            <p>44.8585671088854,-13.1008756758249,0</p>
+            <p>43.877068330186,-13.2529887346259,0</p>
+            <p>42.9931852192459,-13.3450745510215,0</p>
+            <p>42.2102048390135,-13.3872977794066,0</p>
+            <p>41.5306411766535,-13.3899885821817,0</p>
+            <p>40.9562274678188,-13.3635907259153,0</p>
+            <p>40.48791177778,-13.3186093565781,0</p>
+            <p>40.1258558506777,-13.2655586496731,0</p>
+            <p>39.8694372267242,-13.2149095313265,0</p>
+            <p>39.7172546157593,-13.1770376659913,0</p>
+            <p>39.6671365041925,-13.1621719053576,0</p>
+            <p b="-0.036490087535986475">36.2307195995989,-12.01696338137,0</p>
+            <p>34.0898101265637,-17.157489280924,0</p>
+            <p>37.323230075851,-18.7901126720158,0</p>
+            <p>37.3690840416853,-18.8152170493933,0</p>
+            <p>37.5031598148275,-18.8965651429194,0</p>
+            <p>37.7197261899989,-19.0429032754916,0</p>
+            <p>38.012405225967,-19.2625344521438,0</p>
+            <p>38.3742027756336,-19.5632759394371,0</p>
+            <p>38.797541621002,-19.9524188151461,0</p>
+            <p>39.2742970910835,-20.4366896416131,0</p>
+            <p>39.7958350320229,-21.0222144088131,0</p>
+            <p>40.353051990396,-21.7144848853523,0</p>
+            <p>40.9364174627383,-22.5183275073407,0</p>
+            <p b="-0.019649794698065066">41.4052024207325,-23.2372560780124,0</p>
+            <p>39.4482653120214,-26.4168946998485,0</p>
+            <p>39.4482653120214,-26.4168946998485,0</p>
+            <p>38.5952301740873,-26.3222972367763,0</p>
+            <p>37.6147638446338,-26.1636655499862,0</p>
+            <p>36.7456849701237,-25.978109463406,0</p>
+            <p>35.9879786822441,-25.7763118961468,0</p>
+            <p>35.3408437291333,-25.5688742812313,0</p>
+            <p>34.8027012144981,-25.3662648301809,0</p>
+            <p>34.371206533359,-25.1787674988064,0</p>
+            <p>34.0432644546223,-25.0164318439217,0</p>
+            <p>33.8150472897308,-24.8890239573976,0</p>
+            <p>33.6820160759033,-24.8059786600498,0</p>
+            <p>33.6389446919833,-24.7763531333294,0</p>
+            <p b="-0.036490087535986475">30.7246068981782,-22.6252838807974,0</p>
+            <p>27.0999711300632,-26.852637124166,0</p>
+            <p>29.6706278694901,-29.4045359532006,0</p>
+            <p>29.706479903252,-29.4425812895954,0</p>
+            <p>29.8088555976166,-29.5613796164663,0</p>
+            <p>29.9696014900439,-29.7674781413698,0</p>
+            <p>30.1800860283043,-30.066802599118,0</p>
+            <p>30.4312417150071,-30.4646263416986,0</p>
+            <p>30.7136091206617,-30.9655421070095,0</p>
+            <p>31.0173826019036,-31.5734365745889,0</p>
+            <p>31.3324575554372,-32.291467806848,0</p>
+            <p>31.648479032733,-33.1220456642907,0</p>
+            <p>31.9548915355886,-34.0668152728938,0</p>
+            <p b="-0.019649794698065066">32.1785713785507,-34.8954194935095,0</p>
+            <p>29.3348512192129,-37.3147087007558,0</p>
+            <p>29.3348512192129,-37.3147087007558,0</p>
+            <p>28.5527988163663,-36.9611388126554,0</p>
+            <p>27.6693398117959,-36.5072903550292,0</p>
+            <p>26.9001366691818,-36.062255888073,0</p>
+            <p>26.2418740443627,-35.6361908770591,0</p>
+            <p>25.6905138785658,-35.2389302835037,0</p>
+            <p>25.241319696922,-34.8799420624013,0</p>
+            <p>24.8888837304725,-34.5682823141552,0</p>
+            <p>24.627156755675,-34.3125522562499,0</p>
+            <p>24.4494805360281,-34.1208571731841,0</p>
+            <p>24.3486227414301,-34.0007674961388,0</p>
+            <p>24.3168142123111,-33.9592821563002,0</p>
+            <p b="-0.036490087535986475">22.2098312179372,-31.0129138210427,0</p>
+            <p>17.4562737580479,-33.913291619063,0</p>
+            <p>19.1125334951409,-37.1346682485296,0</p>
+            <p>19.1348741499698,-37.1819304013378,0</p>
+            <p>19.1955285192991,-37.3265501536032,0</p>
+            <p>19.284719001049,-37.5722347112474,0</p>
+            <p>19.3924053484647,-37.9219524866508,0</p>
+            <p>19.5083343036846,-38.3779167247942,0</p>
+            <p>19.6220901805903,-38.9415722545127,0</p>
+            <p>19.7231462081346,-39.613585417268,0</p>
+            <p>19.8009164425539,-40.3938372147556,0</p>
+            <p>19.8448080547243,-41.2814197054389,0</p>
+            <p>19.8442737974119,-42.2746356687697,0</p>
+            <p b="-0.019649794698065066">19.8009531838439,-43.1318059849905,0</p>
+            <p>16.3488131164388,-44.5539288938625,0</p>
+            <p>16.3488131164388,-44.5539288938625,0</p>
+            <p>15.7142961867495,-43.9759964648475,0</p>
+            <p>15.0143236298505,-43.2713570855657,0</p>
+            <p>14.4202911820847,-42.6104073125969,0</p>
+            <p>13.9259075524288,-42.0017810696756,0</p>
+            <p>13.5242931485262,-41.4535841322547,0</p>
+            <p>13.208017556093,-40.9733574094,0</p>
+            <p>12.9691391922951,-40.5680426719016,0</p>
+            <p>12.7992469812891,-40.2439508508195,0</p>
+            <p>12.6895038932085,-40.0067330215609,0</p>
+            <p>12.6306921814929,-39.8613541791212,0</p>
+            <p>12.6132601476281,-39.812069900273,0</p>
+            <p b="-0.036490087535986475">11.5198781283886,-36.3588135435001,0</p>
+            <p>6.10271030088144,-37.6483067091816,0</p>
+            <p>6.6824467927335,-41.2238303499373,0</p>
+            <p>6.68908920967839,-41.2756829703473,0</p>
+            <p>6.70208498169851,-41.4319677590302,0</p>
+            <p>6.71098946699065,-41.6931890331278,0</p>
+            <p>6.7053365335817,-42.0590673137034,0</p>
+            <p>6.67469082345733,-42.5285390908902,0</p>
+            <p>6.60869995379892,-43.0997598545487,0</p>
+            <p>6.49714645957075,-43.7701103819186,0</p>
+            <p>6.32999928247384,-44.5362062623621,0</p>
+            <p>6.09746461270839,-45.3939106279471,0</p>
+            <p>5.79003589205628,-46.3383500473723,0</p>
+            <p b="-0.019649794698065066">5.48395534544668,-47.1401806563897,0</p>
+            <p>1.7613148922461,-47.4259299680541,0</p>
+            <p>1.7613148922461,-47.4259299680541,0</p>
+            <p>1.3364443737315,-46.6802070509685,0</p>
+            <p>0.888476455368803,-45.7937517619864,0</p>
+            <p>0.527762737306019,-44.9815850518908,0</p>
+            <p>0.245651817057384,-44.249974154268,0</p>
+            <p>0.0330959911150834,-43.6045022087294,0</p>
+            <p>-0.119301753498434,-43.0500449216913,0</p>
+            <p>-0.221239436032777,-42.590750225441,0</p>
+            <p>-0.28266664992554,-42.2300210067099,0</p>
+            <p>-0.313734188353283,-41.9705009651803,0</p>
+            <p>-0.324742917078415,-41.8140636513582,0</p>
+            <p>-0.326092086758264,-41.7618047220979,0</p>
+            <p b="-0.036490087535986475">-0.298845280779753,-38.1396891362623,0</p>
+            <p>-5.84935334532084,-37.6920730941207,0</p>
+            <p>-6.4028887457938,-41.2717465800706,0</p>
+            <p>-6.41259477278396,-41.323113972318,0</p>
+            <p>-6.4485297147852,-41.475765553402,0</p>
+            <p>-6.52078285901234,-41.726953385609,0</p>
+            <p>-6.63922172473759,-42.0731774560297,0</p>
+            <p>-6.81344228457801,-42.5102016037067,0</p>
+            <p>-7.05272025469294,-43.0330725330294,0</p>
+            <p>-7.36596363743966,-43.6361418447878,0</p>
+            <p>-7.76166669577573,-44.3130910057058,0</p>
+            <p>-8.24786553383603,-45.0569591669112,0</p>
+            <p>-8.8320954526685,-45.8601737317613,0</p>
+            <p b="-0.019649794698065066">-9.37097463582908,-46.528175866882,0</p>
+            <p>-12.9997174901047,-45.649580447781,0</p>
+            <p>-12.9997174901047,-45.649580447781,0</p>
+            <p>-13.1733523108454,-44.809063597506,0</p>
+            <p>-13.3254653696465,-43.8275648188066,0</p>
+            <p>-13.417551186042,-42.9436817078666,0</p>
+            <p>-13.4597744144271,-42.1607013276342,0</p>
+            <p>-13.4624652172023,-41.4811376652742,0</p>
+            <p>-13.4360673609358,-40.9067239564395,0</p>
+            <p>-13.3910859915986,-40.4384082664007,0</p>
+            <p>-13.3380352846937,-40.0763523392984,0</p>
+            <p>-13.287386166347,-39.8199337153449,0</p>
+            <p>-13.2495143010118,-39.66775110438,0</p>
+            <p>-13.2346485403782,-39.6176329928132,0</p>
+            <p b="-0.036490087535986475">-12.0894400163905,-36.1812160882196,0</p>
+            <p>-17.2299659159445,-34.0403066151844,0</p>
+            <p>-18.8625893070363,-37.2737265644717,0</p>
+            <p>-18.8876936844138,-37.319580530306,0</p>
+            <p>-18.9690417779399,-37.4536563034482,0</p>
+            <p>-19.1153799105121,-37.6702226786195,0</p>
+            <p>-19.3350110871644,-37.9629017145876,0</p>
+            <p>-19.6357525744576,-38.3246992642543,0</p>
+            <p>-20.0248954501666,-38.7480381096226,0</p>
+            <p>-20.5091662766336,-39.2247935797041,0</p>
+            <p>-21.0946910438336,-39.7463315206436,0</p>
+            <p>-21.7869615203728,-40.3035484790167,0</p>
+            <p>-22.5908041423612,-40.8869139513589,0</p>
+            <p b="-0.019649794698065066">-23.3097327130329,-41.3556989093531,0</p>
+            <p>-26.489371334869,-39.398761800642,0</p>
+            <p>-26.489371334869,-39.398761800642,0</p>
+            <p>-26.3947738717968,-38.545726662708,0</p>
+            <p>-26.2361421850067,-37.5652603332545,0</p>
+            <p>-26.0505860984266,-36.6961814587444,0</p>
+            <p>-25.8487885311673,-35.9384751708648,0</p>
+            <p>-25.6413509162518,-35.291340217754,0</p>
+            <p>-25.4387414652015,-34.7531977031188,0</p>
+            <p>-25.2512441338269,-34.3217030219796,0</p>
+            <p>-25.0889084789422,-33.993760943243,0</p>
+            <p>-24.9615005924181,-33.7655437783515,0</p>
+            <p>-24.8784552950703,-33.632512564524,0</p>
+            <p>-24.8488297683499,-33.5894411806039,0</p>
+            <p b="-0.036490087535986475">-22.697760515818,-30.6751033867989,0</p>
+            <p>-26.9251137591866,-27.0504676186838,0</p>
+            <p>-29.4770125882211,-29.6211243581108,0</p>
+            <p>-29.5150579246159,-29.6569763918727,0</p>
+            <p>-29.6338562514868,-29.7593520862373,0</p>
+            <p>-29.8399547763903,-29.9200979786646,0</p>
+            <p>-30.1392792341385,-30.130582516925,0</p>
+            <p>-30.5371029767191,-30.3817382036278,0</p>
+            <p>-31.03801874203,-30.6641056092824,0</p>
+            <p>-31.6459132096094,-30.9678790905243,0</p>
+            <p>-32.3639444418686,-31.2829540440579,0</p>
+            <p>-33.1945222993112,-31.5989755213537,0</p>
+            <p>-34.1392919079143,-31.9053880242093,0</p>
+            <p b="-0.019649794698065066">-34.96789612853,-32.1290678671713,0</p>
+            <p>-37.3871853357764,-29.2853477078336,0</p>
+            <p>-37.3871853357764,-29.2853477078336,0</p>
+            <p>-37.0336154476759,-28.503295304987,0</p>
+            <p>-36.5797669900497,-27.6198363004166,0</p>
+            <p>-36.1347325230935,-26.8506331578025,0</p>
+            <p>-35.7086675120796,-26.1923705329834,0</p>
+            <p>-35.3114069185242,-25.6410103671865,0</p>
+            <p>-34.9524186974218,-25.1918161855426,0</p>
+            <p>-34.6407589491758,-24.8393802190931,0</p>
+            <p>-34.3850288912705,-24.5776532442957,0</p>
+            <p>-34.1933338082046,-24.3999770246487,0</p>
+            <p>-34.0732441311594,-24.2991192300507,0</p>
+            <p>-34.0317587913208,-24.2673107009317,0</p>
+            <p b="-0.036490087535986475">-31.0853904560633,-22.1603277065579,0</p>
+            <p>-33.9857682540835,-17.4067702466687,0</p>
+            <p>-37.2071448835501,-19.0630299837616,0</p>
+            <p>-37.2544070363584,-19.0853706385905,0</p>
+            <p>-37.3990267886237,-19.1460250079198,0</p>
+            <p>-37.6447113462679,-19.2352154896697,0</p>
+            <p>-37.9944291216714,-19.3429018370854,0</p>
+            <p>-38.4503933598147,-19.4588307923052,0</p>
+            <p>-39.0140488895332,-19.572586669211,0</p>
+            <p>-39.6860620522886,-19.6736426967552,0</p>
+            <p>-40.4663138497761,-19.7514129311746,0</p>
+            <p>-41.3538963404594,-19.7953045433449,0</p>
+            <p>-42.3471123037902,-19.7947702860325,0</p>
+            <p b="-0.019649794698065066">-43.204282620011,-19.7514496724646,0</p>
+            <p>-44.6264055288831,-16.2993096050595,0</p>
+            <p>-44.6264055288831,-16.2993096050595,0</p>
+            <p>-44.048473099868,-15.6647926753702,0</p>
+            <p>-43.3438337205862,-14.9648201184712,0</p>
+            <p>-42.6828839476174,-14.3707876707054,0</p>
+            <p>-42.0742577046961,-13.8764040410495,0</p>
+            <p>-41.5260607672752,-13.4747896371469,0</p>
+            <p>-41.0458340444205,-13.1585140447137,0</p>
+            <p>-40.6405193069222,-12.9196356809158,0</p>
+            <p>-40.31642748584,-12.7497434699097,0</p>
+            <p>-40.0792096565814,-12.6400003818292,0</p>
+            <p>-39.9338308141417,-12.5811886701136,0</p>
+            <p>-39.8845465352935,-12.5637566362488,0</p>
+            <p b="-0.036490087535986475">-36.4312901785206,-11.4703746170093,0</p>
+            <p>-37.7207833442021,-6.05320678950212,0</p>
+            <p>-41.2963069849579,-6.63294328135418,0</p>
+            <p>-41.3481596053678,-6.63958569829907,0</p>
+            <p>-41.5044443940507,-6.65258147031919,0</p>
+            <p>-41.7656656681483,-6.66148595561133,0</p>
+            <p>-42.1315439487239,-6.65583302220238,0</p>
+            <p>-42.6010157259107,-6.62518731207801,0</p>
+            <p>-43.1722364895692,-6.5591964424196,0</p>
+            <p>-43.8425870169391,-6.44764294819143,0</p>
+            <p>-44.6086828973826,-6.28049577109452,0</p>
+            <p>-45.4663872629676,-6.04796110132907,0</p>
+            <p>-46.4108266823928,-5.74053238067696,0</p>
+            <p b="-0.019649794698065066">-47.2126572914102,-5.43445183406735,0</p>
+            <p>-47.4984066030746,-1.71181138086678,0</p>
+            <p>-47.4984066030746,-1.71181138086678,0</p>
+            <p>-46.752683685989,-1.28694086235218,0</p>
+            <p>-45.8662283970069,-0.838972943989483,0</p>
+            <p>-45.0540616869114,-0.478259225926699,0</p>
+            <p>-44.3224507892885,-0.196148305678063,0</p>
+            <p>-43.6769788437499,0.0164075202642372,0</p>
+            <p>-43.1225215567118,0.168805264877754,0</p>
+            <p>-42.6632268604615,0.270742947412098,0</p>
+            <p>-42.3024976417304,0.33217016130486,0</p>
+            <p>-42.0429776002008,0.363237699732604,0</p>
+            <p>-41.8865402863787,0.374246428457736,0</p>
+            <p>-41.8342813571184,0.375595598137585,0</p>
+            <p b="-0.036490087535986475">-38.2121657712828,0.348348792159074,0</p>
+            <p>-37.7645497291412,5.89885685670016,0</p>
+            <p>-41.3442232150912,6.45239225717312,0</p>
+            <p>-41.3955906073386,6.46209828416328,0</p>
+            <p>-41.5482421884225,6.49803322616452,0</p>
+            <p>-41.7994300206295,6.57028637039166,0</p>
+            <p>-42.1456540910502,6.68872523611691,0</p>
+            <p>-42.5826782387273,6.86294579595733,0</p>
+            <p>-43.1055491680499,7.10222376607226,0</p>
+            <p>-43.7086184798083,7.41546714881898,0</p>
+            <p>-44.3855676407263,7.81117020715505,0</p>
+            <p>-45.1294358019317,8.29736904521532,0</p>
+            <p>-45.9326503667818,8.88159896404782,0</p>
+            <p b="-0.019649794698065066">-46.6006525019025,9.4204781472084,0</p>
+            <p>-45.7220570828015,13.049221001484,0</p>
+            <p>-45.7220570828015,13.049221001484,0</p>
+            <p>-44.8815402325266,13.2228558222247,0</p>
+            <p>-43.9000414538272,13.3749688810258,0</p>
+            <p>-43.0161583428871,13.4670546974213,0</p>
+            <p>-42.2331779626547,13.5092779258064,0</p>
+            <p>-41.5536143002947,13.5119687285816,0</p>
+            <p>-40.97920059146,13.4855708723152,0</p>
+            <p>-40.5108849014212,13.4405895029779,0</p>
+            <p>-40.1488289743189,13.387538796073,0</p>
+            <p>-39.8924103503654,13.3368896777263,0</p>
+            <p>-39.7402277394005,13.2990178123911,0</p>
+            <p>-39.6901096278337,13.2841520517575,0</p>
+            <p b="-0.036490087535986475">-36.2536927232401,12.1389435277698,0</p>
+            <p>-34.1127832502049,17.2794694273238,0</p>
+            <p>-37.3462031994922,18.9120928184156,0</p>
+            <p>-37.3920571653265,18.9371971957931,0</p>
+            <p>-37.5261329384687,19.0185452893192,0</p>
+            <p>-37.7426993136401,19.1648834218914,0</p>
+            <p>-38.0353783496082,19.3845145985437,0</p>
+            <p>-38.3971758992748,19.685256085837,0</p>
+            <p>-38.8205147446432,20.0743989615459,0</p>
+            <p>-39.2972702147247,20.5586697880129,0</p>
+            <p>-39.8188081556641,21.1441945552129,0</p>
+            <p>-40.3760251140372,21.8364650317522,0</p>
+            <p>-40.9593905863794,22.6403076537405,0</p>
+            <p b="-0.019649794698065066">-41.4281755443737,23.3592362244122,0</p>
+            <p>-39.4712384356625,26.5388748462484,0</p>
+            <p>-39.4712384356625,26.5388748462484,0</p>
+            <p>-38.6182032977285,26.4442773831761,0</p>
+            <p>-37.637736968275,26.285645696386,0</p>
+            <p>-36.7686580937649,26.1000896098059,0</p>
+            <p>-36.0109518058853,25.8982920425466,0</p>
+            <p>-35.3638168527745,25.6908544276311,0</p>
+            <p>-34.8256743381393,25.4882449765808,0</p>
+            <p>-34.3941796570002,25.3007476452063,0</p>
+            <p>-34.0662375782635,25.1384119903215,0</p>
+            <p>-33.838020413372,25.0110041037974,0</p>
+            <p>-33.7049891995445,24.9279588064496,0</p>
+            <p>-33.6619178156245,24.8983332797292,0</p>
+            <p b="-0.036490087535986475">-30.7475800218194,22.7472640271973,0</p>
+            <p>-27.1229442537044,26.9746172705659,0</p>
+            <p>-29.6936009931313,29.5265160996004,0</p>
+            <p>-29.7294530268932,29.5645614359952,0</p>
+            <p>-29.8318287212578,29.6833597628661,0</p>
+            <p>-29.9925746136851,29.8894582877696,0</p>
+            <p>-30.2030591519455,30.1887827455178,0</p>
+            <p>-30.4542148386483,30.5866064880984,0</p>
+            <p>-30.7365822443029,31.0875222534093,0</p>
+            <p>-31.0403557255448,31.6954167209887,0</p>
+            <p>-31.3554306790784,32.4134479532479,0</p>
+            <p>-31.6714521563742,33.2440258106905,0</p>
+            <p>-31.9778646592298,34.1887954192936,0</p>
+            <p b="-0.019649794698065066">-32.2015445021919,35.0173996399094,0</p>
+            <p>-29.3578243428541,37.4366888471557,0</p>
+            <p>-29.3578243428541,37.4366888471557,0</p>
+            <p>-28.5757719400075,37.0831189590552,0</p>
+            <p>-27.6923129354371,36.629270501429,0</p>
+            <p>-26.923109792823,36.1842360344729,0</p>
+            <p>-26.2648471680039,35.7581710234589,0</p>
+            <p>-25.713487002207,35.3609104299036,0</p>
+            <p>-25.2642928205631,35.0019222088011,0</p>
+            <p>-24.9118568541137,34.6902624605551,0</p>
+            <p>-24.6501298793162,34.4345324026498,0</p>
+            <p>-24.4724536596692,34.2428373195839,0</p>
+            <p>-24.3715958650712,34.1227476425387,0</p>
+            <p>-24.3397873359522,34.0812623027001,0</p>
+            <p b="-0.036490087535986475">-22.2328043415784,31.1348939674423,0</p>
+            <p>-17.4792468816892,34.0352717654629,0</p>
+            <p>-19.1355066187821,37.2566483949294,0</p>
+            <p>-19.157847273611,37.3039105477377,0</p>
+            <p>-19.2185016429403,37.448530300003,0</p>
+            <p>-19.3076921246902,37.6942148576472,0</p>
+            <p>-19.4153784721059,38.0439326330507,0</p>
+            <p>-19.5313074273258,38.499896871194,0</p>
+            <p>-19.6450633042315,39.0635524009125,0</p>
+            <p>-19.7461193317758,39.7355655636679,0</p>
+            <p>-19.8238895661951,40.5158173611554,0</p>
+            <p>-19.8677811783654,41.4033998518387,0</p>
+            <p>-19.867246921053,42.3966158151695,0</p>
+            <p b="-0.019649794698065066">-19.8239263074851,43.2537861313903,0</p>
+            <p>-16.37178624008,44.6759090402624,0</p>
+            <p>-16.37178624008,44.6759090402624,0</p>
+            <p>-15.7372693103907,44.0979766112473,0</p>
+            <p>-15.0372967534917,43.3933372319656,0</p>
+            <p>-14.4432643057259,42.7323874589968,0</p>
+            <p>-13.94888067607,42.1237612160755,0</p>
+            <p>-13.5472662721674,41.5755642786545,0</p>
+            <p>-13.2309906797342,41.0953375557999,0</p>
+            <p>-12.9921123159363,40.6900228183015,0</p>
+            <p>-12.8222201049303,40.3659309972193,0</p>
+            <p>-12.7124770168497,40.1287131679607,0</p>
+            <p>-12.6536653051341,39.983334325521,0</p>
+            <p>-12.6362332712693,39.9340500466728,0</p>
+            <p b="-0.036490087535986475">-11.5428512520298,36.4807936898999,0</p>
+            <p>-6.12568342452263,37.7702868555814,0</p>
+            <p>-6.7054199163747,41.3458104963372,0</p>
+            <p>-6.71206233331962,41.3976631167472,0</p>
+            <p>-6.72505810533971,41.55394790543,0</p>
+            <p>-6.73396259063184,41.8151691795277,0</p>
+            <p>-6.72830965722289,42.1810474601033,0</p>
+            <p>-6.69766394709853,42.65051923729,0</p>
+            <p>-6.63167307744015,43.2217400009486,0</p>
+            <p>-6.52011958321195,43.8920905283184,0</p>
+            <p>-6.35297240611504,44.658186408762,0</p>
+            <p>-6.12043773634959,45.5158907743469,0</p>
+            <p>-5.81300901569751,46.4603301937721,0</p>
+            <p b="-0.019649794698065066">-5.50692846908787,47.2621608027895,0</p>
+            <p>-1.78428801588731,47.5479101144539,0</p>
+            <p>-1.78428801588731,47.5479101144539,0</p>
+            <p>-1.35941749737271,46.8021871973683,0</p>
+            <p>-0.911449579010009,45.9157319083865,0</p>
+            <p>-0.550735860947219,45.1035651982907,0</p>
+            <p>-0.268624940698588,44.3719543006678,0</p>
+            <p>-0.0560691147562854,43.7264823551293,0</p>
+            <p>0.0963286298572317,43.1720250680911,0</p>
+            <p>0.198266312391573,42.7127303718408,0</p>
+            <p>0.259693526284335,42.3520011531097,0</p>
+            <p>0.290761064712083,42.0924811115801,0</p>
+            <p>0.30176979343721,41.936043797758,0</p>
+            <p>0.303118963117064,41.8837848684977,0</p>
+            <p b="-0.036490087535986475">0.275872157138551,38.2616692826621,0</p>
+            <p>5.82638022167964,37.8140532405206,0</p>
+            <p>6.3799156221526,41.3937267264705,0</p>
+            <p>6.38962164914273,41.4450941187179,0</p>
+            <p>6.42555659114401,41.5977456998018,0</p>
+            <p>6.49780973537115,41.8489335320088,0</p>
+            <p>6.61624860109639,42.1951576024295,0</p>
+            <p>6.79046916093681,42.6321817501066,0</p>
+            <p>7.02974713105175,43.1550526794292,0</p>
+            <p>7.34299051379846,43.7581219911877,0</p>
+            <p>7.73869357213453,44.4350711521056,0</p>
+            <p>8.2248924101948,45.178939313311,0</p>
+            <p>8.80912232902731,45.9821538781611,0</p>
+            <p b="-0.019649794698065066">9.34800151218785,46.6501560132818,0</p>
+            <p>12.9767443664635,45.7715605941809,0</p>
+            <p>12.9767443664635,45.7715605941809,0</p>
+            <p>13.1503791872042,44.9310437439059,0</p>
+            <p>13.3024922460052,43.9495449652065,0</p>
+            <p>13.3945780624008,43.0656618542664,0</p>
+            <p>13.4368012907859,42.282681474034,0</p>
+            <p>13.4394920935611,41.603117811674,0</p>
+            <p>13.4130942372946,41.0287041028393,0</p>
+            <p>13.3681128679574,40.5603884128005,0</p>
+            <p>13.3150621610525,40.1983324856982,0</p>
+            <p>13.2644130427058,39.9419138617447,0</p>
+            <p>13.2265411773706,39.7897312507798,0</p>
+            <p>13.211675416737,39.739613139213,0</p>
+            <p b="-0.036490087535986475">12.0664668927493,36.3031962346194,0</p>
+            <p>17.2069927923033,34.1622867615842,0</p>
+            <p>18.8396161833951,37.3957067108715,0</p>
+            <p>18.8647205607726,37.4415606767058,0</p>
+            <p>18.9460686542987,37.575636449848,0</p>
+            <p>19.0924067868709,37.7922028250194,0</p>
+            <p>19.3120379635232,38.0848818609875,0</p>
+            <p>19.6127794508164,38.4466794106541,0</p>
+            <p>20.0019223265254,38.8700182560225,0</p>
+            <p>20.4861931529924,39.346773726104,0</p>
+            <p>21.0717179201924,39.8683116670434,0</p>
+            <p>21.7639883967316,40.4255286254165,0</p>
+            <p>22.56783101872,41.0088940977588,0</p>
+            <p b="-0.019649794698065066">23.2867595893917,41.477679055753,0</p>
+            <p>26.4663982112278,39.5207419470419,0</p>
+            <p>26.4663982112278,39.5207419470419,0</p>
+            <p>26.3718007481556,38.6677068091078,0</p>
+            <p>26.2131690613655,37.6872404796544,0</p>
+            <p>26.0276129747854,36.8181616051442,0</p>
+            <p>25.8258154075261,36.0604553172646,0</p>
+            <p>25.6183777926106,35.4133203641538,0</p>
+            <p>25.4157683415603,34.8751778495186,0</p>
+            <p>25.2282710101857,34.4436831683795,0</p>
+            <p>25.065935355301,34.1157410896429,0</p>
+            <p>24.9385274687769,33.8875239247513,0</p>
+            <p>24.8554821714291,33.7544927109238,0</p>
+            <p>24.8258566447087,33.7114213270038,0</p>
+            <p b="-0.036490087535986475">22.6747873921768,30.7970835331987,0</p>
+          </pts>
+        </pline>
+        <pline id="116" Closed="true">
+          <ModificationCount>617</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-89.3123293025045,23.2125632781826,0</p>
+            <p b="-0.2896898730411448">-89.3123293025045,18.2151266896259,0</p>
+            <p b="0.020174678347342993">-92.6037580609596,13.0109210801772,0</p>
+            <p b="0.084029286039332213">-93.6323299570971,12.4711728710514,0</p>
+            <p b="-0.45797253836853369">-97.3351865114009,9.40719816491295,0</p>
+            <p b="0.057355426402256909">-106.057471754844,9.40719816491294,0</p>
+            <p b="-0.44027537947308043">-108.479465366599,11.6380599019405,0</p>
+            <p b="-0.082507988535735821">-109.425444138199,20.0821242489654,0</p>
+            <p b="-0.041841541401691489">-101.696327210515,26.4384307686811,0</p>
+            <p b="-0.52287745925706286">-97.0816321145949,28.6107391005624,0</p>
+          </pts>
+        </pline>
+        <pline id="117" Closed="true">
+          <ModificationCount>617</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-83.5523293025045,23.2125648355379,0</p>
+            <p b="0.28968985356441707">-83.5523293025045,18.2151260686248,0</p>
+            <p b="-0.17293727527228572">-80.2609009181024,13.010920636605,0</p>
+            <p b="0.28968984844899193">-73.4218164935487,6.17183634115622,0</p>
+            <p>-68.2176111081293,2.88040805499652,0</p>
+            <p b="0.52287744171661388">-63.2201706982357,2.88040805499652,0</p>
+            <p b="0.21788709444512511">-57.8219947651475,10.6497105696585,0</p>
+            <p b="0.52287740187461262">-75.7830274634321,28.6107410200933,0</p>
+          </pts>
+        </pline>
+        <pline id="119" Closed="true">
+          <ModificationCount>617</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-89.3123293025045,-23.211748794283,0</p>
+            <p b="0.28968987304114552">-89.3123293025045,-18.214312576515,0</p>
+            <p b="-0.020174678347343013">-92.6037580609596,-13.0101069670662,0</p>
+            <p b="-0.0840292860393321">-93.6323299570971,-12.4703587579404,0</p>
+            <p b="0.45797253836853347">-97.3351865114009,-9.40638405180194,0</p>
+            <p b="-0.057355423355804937">-106.057471754844,-9.40638405180194,0</p>
+            <p b="0.44027537947307988">-108.47946522525,-11.6372456858222,0</p>
+            <p b="0.08250798547860165">-109.425443894289,-20.0813100443368,0</p>
+            <p b="0.04184154140169178">-101.696327210515,-26.4376162847814,0</p>
+            <p b="0.52287745925706175">-97.0816321145949,-28.6099246166628,0</p>
+          </pts>
+        </pline>
+        <pline id="118" Closed="true">
+          <ModificationCount>617</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.2178871127899506">-75.7830274634321,-28.6099265361938,0</p>
+            <p b="0.52287741941505983">-57.8219940191264,-10.6488940815043,0</p>
+            <p>-63.2201700929734,-2.87959194500351,0</p>
+            <p b="0.28968987815657021">-68.2176101609252,-2.87959194500351,0</p>
+            <p b="-0.17293730349950326">-73.4218158169742,-6.17102080170094,0</p>
+            <p b="0.28968985356441651">-80.2609009181024,-13.010106523494,0</p>
+            <p>-83.5523293025045,-18.2143119555138,0</p>
+            <p b="0.52287740187461251">-83.5523293025045,-23.2117503516384,0</p>
+          </pts>
+        </pline>
+        <pline id="38" Closed="true">
+          <ModificationCount>616</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-2.89826498289573,-23.2094928329704,0</p>
+            <p b="0.28968985356441707">-2.89435934547946,-18.2120555922396,0</p>
+            <p b="-0.17293727527228572">-6.18171949338575,-13.0052794067031,0</p>
+            <p b="0.28968984844899193">-13.0154568947033,-6.16085226513315,0</p>
+            <p>-18.217088348028,-2.8653577528718,0</p>
+            <p b="0.52287744171661388">-23.2145272317387,-2.86145211417149,0</p>
+            <p b="0.21788709444512511">-28.6187734423058,-10.6265334314841,0</p>
+            <p b="0.52287740187461262">-10.6717832741344,-28.6015954434455,0</p>
+          </pts>
+        </pline>
+        <pline id="37" Closed="true">
+          <ModificationCount>616</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.2178871127899506">-10.6270637306611,28.6190546380553,0</p>
+            <p b="0.52287741941505983">-28.6021287363021,10.6720647158188,0</p>
+            <p>-23.2100262367677,2.89854612723839,0</p>
+            <p b="0.28968987815657021">-18.2125876949987,2.89464048880532,0</p>
+            <p b="-0.17293730349950326">-13.005811285064,6.18200110883169,0</p>
+            <p b="0.28968985356441651">-6.16138333680105,13.0157398067586,0</p>
+            <p>-2.8658887262609,18.2173713066068,0</p>
+            <p b="0.52287740187461251">-2.86198308913441,23.2148081765491,0</p>
+          </pts>
+        </pline>
+        <pline id="33" Closed="true">
+          <ModificationCount>616</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>2.87987639378342,23.2125648355379,0</p>
+            <p b="0.28968985356441707">2.87987639378342,18.2151260686248,0</p>
+            <p b="-0.17293727527228572">6.17130477818554,13.010920636605,0</p>
+            <p b="0.28968984844899193">13.0103892027392,6.17183634115622,0</p>
+            <p>18.2145945881586,2.88040805499652,0</p>
+            <p b="0.52287744171661388">23.2120349980523,2.88040805499652,0</p>
+            <p b="0.21788709444512511">28.6102109311405,10.6497105696585,0</p>
+            <p b="0.52287740187461262">10.6491782328558,28.6107410200933,0</p>
+          </pts>
+        </pline>
+        <pline id="36" Closed="true">
+          <ModificationCount>616</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.2178871127899506">10.6491782328558,-28.6099265361938,0</p>
+            <p b="0.52287741941505983">28.6102116771615,-10.6488940815043,0</p>
+            <p>23.2120356033145,-2.87959194500351,0</p>
+            <p b="0.28968987815657021">18.2145955353627,-2.87959194500351,0</p>
+            <p b="-0.17293730349950326">13.0103898793137,-6.17102080170094,0</p>
+            <p b="0.28968985356441651">6.17130477818554,-13.010106523494,0</p>
+            <p>2.87987639378342,-18.2143119555138,0</p>
+            <p b="0.52287740187461251">2.87987639378342,-23.2117503516384,0</p>
+          </pts>
+        </pline>
+        <circle id="69" c="-0.000124260809473071,0.000407056555497433,0" d="26.496">
+          <ModificationCount>302967</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="1139" Closed="true">
+          <ModificationCount>616</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.32766414558507129">6.7563537953184,7.3561554615314,0</p>
+            <p b="0.054895246810991831">-4.99404665263948,8.65013820486774,0</p>
+            <p>-6.75660595199607,7.35615668810987,0</p>
+            <p b="0.054895246810991838">-6.75660595199607,-7.35532629275221,0</p>
+            <p b="0.32766414558507145">-4.99404665263948,-8.64930780951005,0</p>
+            <p>6.7563537953184,-7.35532506617374,0</p>
+          </pts>
+        </pline>
+        <circle id="29" c="-0.00012426080918658,0.000407056555497434,0" d="7.2">
+          <ModificationCount>302967</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="44" c="-86.4323299570971,0.000407056555497433,0" d="18.288">
+          <ModificationCount>302967</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="136" Closed="true">
+          <ModificationCount>614</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="0.34872473846972568">-79.8083293025045,6.19910041305857,0</p>
+            <p b="0.073872777804093792">-90.9683299570971,7.85698951968793,0</p>
+            <p>-93.0563293025045,6.19910181207006,0</p>
+            <p b="0.073872777804093612">-93.0563293025045,-6.19828769895906,0</p>
+            <p b="0.34872473846972585">-90.9683299570971,-7.85617540657692,0</p>
+            <p>-79.8083293025045,-6.19828629994757,0</p>
+          </pts>
+        </pline>
+        <circle id="145" c="-86.4323299570971,0.000407056555497434,0" d="7.2">
+          <ModificationCount>302967</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="1" Closed="true">
+          <ModificationCount>483</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>108.738335061178,-31.045541436713,-2.84565597517413E-14</p>
+            <p>110.856676469159,-33.983754054074,-2.81440525997065E-14</p>
+            <p>110.888644910608,-34.0251162916536,-2.81393935436383E-14</p>
+            <p>110.98996554596,-34.1448157240494,-2.81248454250473E-14</p>
+            <p>111.168380458331,-34.3358234802873,-2.80996064687363E-14</p>
+            <p>111.431092699162,-34.590541266024,-2.8062951005455E-14</p>
+            <p>111.78472916583,-34.9008381538054,-2.80142332571684E-14</p>
+            <p>112.235305832799,-35.2580896379111,-2.79528907942755E-14</p>
+            <p>112.788195468708,-35.6532188093525,-2.78784476515304E-14</p>
+            <p>113.44809796319,-36.0767394990718,-2.77905170906036E-14</p>
+            <p>114.219013378201,-36.5188012303778,-2.76888039984468E-14</p>
+            <p>115.104217829201,-36.969235815169,-2.75731069118874E-14</p>
+            <p b="0.019649794698065066">115.887629320297,-37.3197840460709,-2.74716355125504E-14</p>
+            <p>118.721988904672,-34.8895350136908,-2.71753678190576E-14</p>
+            <p>118.721988904672,-34.8895350136908,-2.71753678190576E-14</p>
+            <p>118.495111997882,-34.0618004573655,-2.72186662122064E-14</p>
+            <p>118.185054604653,-33.1182207584794,-2.72742447826946E-14</p>
+            <p>117.865829132599,-32.2888690542075,-2.7328743986285E-14</p>
+            <p>117.547984650455,-31.5720594825538,-2.73809201782479E-14</p>
+            <p>117.241866726603,-30.9653422268932,-2.74295689629471E-14</p>
+            <p>116.957567697714,-30.4655202406966,-2.7473530888598E-14</p>
+            <p>116.704878130011,-30.0686690198366,-2.75116969393913E-14</p>
+            <p>116.493239652767,-29.7701593436068,-2.75430138047687E-14</p>
+            <p>116.331699338645,-29.5646828952902,-2.75664889064406E-14</p>
+            <p>116.228865799944,-29.4462806631222,-2.75811951645944E-14</p>
+            <p>116.192867163717,-29.4083740128352,-2.75862754856701E-14</p>
+            <p b="0.036490087535986475">113.612378269457,-26.8664179211225,-2.79470896240758E-14</p>
+            <p>117.220667822159,-22.6251036908887,-2.75919075160817E-14</p>
+            <p>120.143287853809,-24.7649064519362,-2.71974156872318E-14</p>
+            <p>120.186473282702,-24.7943654858233,-2.71916279339693E-14</p>
+            <p>120.319824092016,-24.8768966127959,-2.71739177072181E-14</p>
+            <p>120.548531399766,-25.0034225440559,-2.71438310201854E-14</p>
+            <p>120.877097712881,-25.16449100695,-2.7101004359205E-14</p>
+            <p>121.309312990531,-25.3503212060295,-2.70451666888904E-14</p>
+            <p>121.848233645597,-25.5508517105819,-2.69761410745844E-14</p>
+            <p>122.496164565569,-25.7557895903499,-2.68938459156881E-14</p>
+            <p>123.254644223659,-25.9546606166678,-2.67982957848097E-14</p>
+            <p>124.124432940153,-26.1368603423676,-2.66896018690464E-14</p>
+            <p>125.105504343085,-26.2917058705423,-2.65679720111051E-14</p>
+            <p b="0.019649794698065066">125.958898307329,-26.3830095854801,-2.646300238955E-14</p>
+            <p>127.903546208004,-23.1958401272738,-2.62888483145379E-14</p>
+            <p>127.903546208004,-23.1958401272738,-2.62888483145379E-14</p>
+            <p>127.431989402669,-22.4787266035469,-2.6359622287003E-14</p>
+            <p>126.845525135909,-21.677141986017,-2.64459128731052E-14</p>
+            <p>126.285639899612,-20.9870277392707,-2.65268532022587E-14</p>
+            <p>125.761845494328,-20.4035206717577,-2.66013859586772E-14</p>
+            <p>125.283224105314,-19.9210939129658,-2.66685185039483E-14</p>
+            <p>124.858386173416,-19.5335881874169,-2.67273273735567E-14</p>
+            <p>124.495430341968,-19.2342456185398,-2.67769624738405E-14</p>
+            <p>124.201905626146,-19.0157459319164,-2.68166509641724E-14</p>
+            <p>123.984775943282,-18.8702449191402,-2.68457008102674E-14</p>
+            <p>123.850387134295,-18.7894150157431,-2.68635039956837E-14</p>
+            <p>123.804436597595,-18.7644878393454,-2.68695393797858E-14</p>
+            <p b="0.036490087535986475">120.564738188188,-17.1443588563076,-2.7292427347374E-14</p>
+            <p>122.685787304338,-11.9956065275781,-2.71345151949836E-14</p>
+            <p>126.126599547868,-13.1275406291783,-2.66966542981124E-14</p>
+            <p>126.176774673535,-13.1422128038829,-2.66903043932708E-14</p>
+            <p>126.329102350485,-13.1794969036957,-2.66711656587481E-14</p>
+            <p>126.585714588834,-13.2291557702684,-2.66391763355467E-14</p>
+            <p>126.947972614249,-13.2808084069419,-2.65943706488349E-14</p>
+            <p>127.416458460084,-13.3239815626785,-2.65368788367065E-14</p>
+            <p>127.990969794648,-13.3481617647139,-2.64669267790454E-14</p>
+            <p>128.670518005836,-13.3428476052506,-2.63848352275349E-14</p>
+            <p>129.45332955396,-13.2976020864954,-2.6291018639252E-14</p>
+            <p>130.336850592194,-13.2021048279768,-2.61859836176724E-14</p>
+            <p>131.317754842612,-13.0462039403654,-2.60703269662895E-14</p>
+            <p b="0.019649794698065066">132.157595132839,-12.8693256955706,-2.59721342804404E-14</p>
+            <p>133.022175664136,-9.2372181644224,-2.59371412381739E-14</p>
+            <p>133.022175664136,-9.2372181644224,-2.59371412381739E-14</p>
+            <p>132.352098225892,-8.70092174142039,-2.60284629404193E-14</p>
+            <p>131.54663429417,-8.11979689257893,-2.61370188183459E-14</p>
+            <p>130.800894761506,-7.63647329413827,-2.62364772697006E-14</p>
+            <p>130.122423078963,-7.24338646806689,-2.6326070805076E-14</p>
+            <p>129.518149021096,-6.93247349855932,-2.64051157096481E-14</p>
+            <p>128.994358282982,-6.69521579398607,-2.64730149013111E-14</p>
+            <p>128.556664833433,-6.52268361337588,-2.65292604216416E-14</p>
+            <p>128.209986123325,-6.40558218806218,-2.65734355509684E-14</p>
+            <p>127.958521237909,-6.3342992637222,-2.66052165401485E-14</p>
+            <p>127.805732071602,-6.29895388321552,-2.66243739529966E-14</p>
+            <p>127.754327593117,-6.28944622641084,-2.66307736146783E-14</p>
+            <p b="0.036490087535986475">124.172543921182,-5.7497338650102,-2.70743401907476E-14</p>
+            <p>124.598729535073,-0.197539189187841,-2.71291555356755E-14</p>
+            <p>128.220923314537,-0.210803034827315,-2.66907864461252E-14</p>
+            <p>128.273176646087,-0.209252135662376,-2.66844959626326E-14</p>
+            <p>128.429570296325,-0.197639580852184,-2.6665802153021E-14</p>
+            <p>128.68896847146,-0.165570426883616,-2.66350415314886E-14</p>
+            <p>129.049457869647,-0.102751117373787,-2.65926427118403E-14</p>
+            <p>129.508355624944,0.000958859521023309,-2.65391244570383E-14</p>
+            <p>130.062220466723,0.155495886651141,-2.64750933508106E-14</p>
+            <p>130.706867055525,0.370541898391516,-2.64012410997131E-14</p>
+            <p>131.437383445185,0.655475015600277,-2.63183414753456E-14</p>
+            <p>132.248151610083,1.01932132130471,-2.62272469076838E-14</p>
+            <p>133.132870965594,1.47070795959754,-2.6128884741724E-14</p>
+            <p b="0.019649794698065066">133.876948162685,1.89845408914134,-2.60470807758204E-14</p>
+            <p>133.576830158315,5.61996370170117,-2.61546741290875E-14</p>
+            <p>133.576830158315,5.61996370170117,-2.61546741290875E-14</p>
+            <p>132.77382393552,5.92294659349814,-2.62576043566216E-14</p>
+            <p>131.82820476047,6.22672712451163,-2.6377799320688E-14</p>
+            <p>130.969609112771,6.45594899331776,-2.64860402080574E-14</p>
+            <p>130.202873688445,6.62013750061466,-2.65819244829125E-14</p>
+            <p>129.532097516733,6.72910235312453,-2.66651442807877E-14</p>
+            <p>128.960626259315,6.79288759952683,-2.67354873485439E-14</p>
+            <p>128.491039676097,6.82172073992964,-2.67928375855055E-14</p>
+            <p>128.1251422993,6.82596120053014,-2.68371751843824E-14</p>
+            <p>127.863957346377,6.8160483671423,-2.68685763719956E-14</p>
+            <p>127.707723890891,6.80244937264875,-2.68872127512285E-14</p>
+            <p>127.655897299132,6.79560683416865,-2.68933502470151E-14</p>
+            <p b="0.036490087535986475">124.082638306231,6.20207176760123,-2.73141760445899E-14</p>
+            <p>122.772242400567,11.6142212912319,-2.75763531789536E-14</p>
+            <p>126.221252151523,12.7209260591789,-2.71803865175063E-14</p>
+            <p>126.270468768793,12.7385482193974,-2.71747712117154E-14</p>
+            <p>126.415619492175,12.7979207110564,-2.71583522073471E-14</p>
+            <p>126.652411903381,12.9085787333368,-2.71318313514412E-14</p>
+            <p>126.975845460369,13.0797207973272,-2.70959896907335E-14</p>
+            <p>127.38023501551,13.3201620517251,-2.70516837329215E-14</p>
+            <p>127.859237214787,13.6382891470825,-2.69998413889357E-14</p>
+            <p>128.405879681575,14.0420168091572,-2.69414576111476E-14</p>
+            <p>129.012592878743,14.5387462860611,-2.68775897435242E-14</p>
+            <p>129.671244533371,15.1353258274828,-2.68093526007561E-14</p>
+            <p>130.373176499257,15.8380133473054,-2.6737913294353E-14</p>
+            <p b="0.019649794698065066">130.948655142869,16.4747565901558,-2.66805055905394E-14</p>
+            <p>129.513216244145,19.9213809939679,-2.69201533522752E-14</p>
+            <p>129.513216244145,19.9213809939679,-2.69201533522752E-14</p>
+            <p>128.65588508076,19.9613922781049,-2.702461657727E-14</p>
+            <p>127.662674455751,19.9580923363514,-2.71446851069458E-14</p>
+            <p>126.775268017201,19.9107746419214,-2.72511130581156E-14</p>
+            <p>125.995322256586,19.8299929153811,-2.73439022515624E-14</p>
+            <p>125.323704216288,19.7263434119269,-2.74231508090984E-14</p>
+            <p>124.760492027917,19.6104124558224,-2.74890520833669E-14</p>
+            <p>124.304978717597,19.4927241673428,-2.75418931961832E-14</p>
+            <p>123.95567925871,19.3836885774016,-2.75820531915138E-14</p>
+            <p>123.710340841253,19.2935503234847,-2.76100008105316E-14</p>
+            <p>123.565956315755,19.2323381183218,-2.76262918975026E-14</p>
+            <p>123.51878075862,19.2098151798982,-2.76315664465442E-14</p>
+            <p b="0.036490087535986475">120.303821931339,17.54113203308,-2.79884581044921E-14</p>
+            <p>117.38511518743,22.283457500483,-2.84323333036846E-14</p>
+            <p>120.323327804791,24.4017989084645,-2.81175290460248E-14</p>
+            <p>120.36469004237,24.4337673499136,-2.81131385831906E-14</p>
+            <p>120.484389474766,24.5350879852651,-2.8100601590611E-14</p>
+            <p>120.675397231004,24.7135028976368,-2.80809165464892E-14</p>
+            <p>120.930115016741,24.9762151384677,-2.80551404761957E-14</p>
+            <p>121.240411904522,25.3298516051353,-2.80243837912222E-14</p>
+            <p>121.597663388628,25.7804282721048,-2.79898048993145E-14</p>
+            <p>121.992792560069,26.3333179080137,-2.79526046057894E-14</p>
+            <p>122.416313249789,26.9932204024957,-2.79140203267866E-14</p>
+            <p>122.858374981095,27.7641358175063,-2.78753201358826E-14</p>
+            <p>123.308809565886,28.6493402685064,-2.78377966660938E-14</p>
+            <p b="0.019649794698065066">123.659357796788,29.4327517596024,-2.78104046904025E-14</p>
+            <p>121.229108764408,32.2671113439773,-2.81586484679642E-14</p>
+            <p>121.229108764408,32.2671113439773,-2.81586484679642E-14</p>
+            <p>120.401374208082,32.0402344371878,-2.8254419102119E-14</p>
+            <p>119.457794509196,31.7301770439582,-2.83626080531529E-14</p>
+            <p>118.628442804924,31.4109515719047,-2.84568051587354E-14</p>
+            <p>117.911633233271,31.0931070897603,-2.85374164180192E-14</p>
+            <p>117.30491597761,30.7869891659087,-2.86049363342471E-14</p>
+            <p>116.805093991413,30.5026901370195,-2.86599449391412E-14</p>
+            <p>116.408242770553,30.2500005693164,-2.87031044715242E-14</p>
+            <p>116.109733094324,30.0383620920727,-2.87351557231545E-14</p>
+            <p>115.904256646007,29.87682177795,-2.87569140659048E-14</p>
+            <p>115.785854413839,29.7739882392496,-2.87692651755145E-14</p>
+            <p>115.747947763552,29.7379896030219,-2.8773160468201E-14</p>
+            <p b="0.036490087535986475">113.205991671839,27.1575007087631,-2.90311829444316E-14</p>
+            <p>108.964677441605,30.7657902614645,-2.96133066112956E-14</p>
+            <p>111.104480202653,33.6884102931145,-2.94104799915332E-14</p>
+            <p>111.13393923654,33.7315957220078,-2.9407744140748E-14</p>
+            <p>111.216470363513,33.8649465313217,-2.94003163681412E-14</p>
+            <p>111.342996294773,34.0936538390719,-2.93893940450761E-14</p>
+            <p>111.504064757667,34.4222201521866,-2.93762067065496E-14</p>
+            <p>111.689894956746,34.8544354298367,-2.93620099730341E-14</p>
+            <p>111.890425461299,35.3933560849027,-2.93480793560698E-14</p>
+            <p>112.095363341067,36.0412870048746,-2.93357039707275E-14</p>
+            <p>112.294234367385,36.7997666629641,-2.93261801784067E-14</p>
+            <p>112.476434093084,37.6695553794587,-2.93208051836924E-14</p>
+            <p>112.631279621259,38.6506267823904,-2.93208706091823E-14</p>
+            <p b="0.019649794698065066">112.722583336197,39.5040207466346,-2.9326175679045E-14</p>
+            <p>109.535413877991,41.4486686473092,-2.97489269451279E-14</p>
+            <p>109.535413877991,41.4486686473092,-2.97489269451279E-14</p>
+            <p>108.818300354264,40.9771118419742,-2.98266302914984E-14</p>
+            <p>108.016715736734,40.3906475752147,-2.99123493755664E-14</p>
+            <p>107.326601489988,39.8307623389172,-2.99850949665575E-14</p>
+            <p>106.743094422475,39.3069679336335,-3.00456374999677E-14</p>
+            <p>106.260667663683,38.8283465446198,-3.00948194550483E-14</p>
+            <p>105.873161938134,38.4035086127216,-3.01335507650536E-14</p>
+            <p>105.573819369257,38.0405527812735,-3.01628039612633E-14</p>
+            <p>105.355319682633,37.7470280654517,-3.01836090693696E-14</p>
+            <p>105.209818669857,37.5298983825874,-3.01970482776648E-14</p>
+            <p>105.12898876646,37.3955095736008,-3.02042503972494E-14</p>
+            <p>105.104061590062,37.3495590369,-3.02063851351925E-14</p>
+            <p b="0.036490087535986475">103.483932607025,34.1098606274937,-3.03402813919841E-14</p>
+            <p>98.335180278295,36.2309097436437,-3.10036712061128E-14</p>
+            <p>99.4671143798952,39.6717219871732,-3.09326763069663E-14</p>
+            <p>99.4817865545998,39.7218971128401,-3.09318628723668E-14</p>
+            <p>99.5190706544126,39.8742247897908,-3.09302714018679E-14</p>
+            <p>99.5687295209853,40.1308370281393,-3.09291809529413E-14</p>
+            <p>99.6203821576588,40.4930950535546,-3.09298732147583E-14</p>
+            <p>99.6635553133953,40.9615808993895,-3.09336261078919E-14</p>
+            <p>99.6877355154308,41.5360922339534,-3.09417073917197E-14</p>
+            <p>99.6824213559675,42.2156404451414,-3.0955368303502E-14</p>
+            <p>99.6371758372123,42.9984519932656,-3.09758372530116E-14</p>
+            <p>99.5416785786937,43.8819730314995,-3.10043135964195E-14</p>
+            <p>99.3857776910822,44.8628772819174,-3.10419615128853E-14</p>
+            <p b="0.019649794698065066">99.2088994462875,45.7027175721442,-3.10794443311012E-14</p>
+            <p>95.5767919151393,46.5672981034419,-3.15353212462998E-14</p>
+            <p>95.5767919151393,46.5672981034419,-3.15353212462998E-14</p>
+            <p>95.0404954921373,45.897220665197,-3.15873511599523E-14</p>
+            <p>94.4593706432958,45.0917567334748,-3.16422095958658E-14</p>
+            <p>93.9760470448551,44.3460172008117,-3.16863828269709E-14</p>
+            <p>93.5829602187838,43.6675455182684,-3.17209303095128E-14</p>
+            <p>93.2720472492762,43.0632714604011,-3.17469600310119E-14</p>
+            <p>93.034789544703,42.5394807222874,-3.17656227556481E-14</p>
+            <p>92.8622573640928,42.1017872727386,-3.17781061090206E-14</p>
+            <p>92.7451559387791,41.7551085626301,-3.17856285246637E-14</p>
+            <p>92.6738730144391,41.5036436772147,-3.17894330751593E-14</p>
+            <p>92.6385276339324,41.3508545109074,-3.17907812110738E-14</p>
+            <p>92.6290199771277,41.2994500324222,-3.179094643125E-14</p>
+            <p b="0.036490087535986475">92.0893076157272,37.7176663604871,-3.17876097700777E-14</p>
+            <p>86.5371129399048,38.1438519743785,-3.24673285143557E-14</p>
+            <p>86.5503767855442,41.7660457538426,-3.25351148112041E-14</p>
+            <p>86.5488258863792,41.818299085392,-3.25363034174364E-14</p>
+            <p>86.5372133315691,41.9746927356303,-3.25407040332663E-14</p>
+            <p>86.5051441776006,42.2340909107651,-3.25495521992167E-14</p>
+            <p>86.4423248680907,42.5945803089528,-3.25640562979674E-14</p>
+            <p>86.3386148911959,43.0534780642495,-3.25853914584221E-14</p>
+            <p>86.1840778640658,43.6073429060285,-3.26146935906753E-14</p>
+            <p>85.9690318523254,44.2519894948304,-3.26530535743558E-14</p>
+            <p>85.6840987351166,44.9825058844904,-3.27015116223023E-14</p>
+            <p>85.3202524294122,45.793274049388,-3.27610518409333E-14</p>
+            <p>84.8688657911194,46.6779934048997,-3.28325970080028E-14</p>
+            <p b="0.019649794698065066">84.4411196615755,47.4220706019901,-3.28985884951669E-14</p>
+            <p>80.7196100490157,47.1219525976209,-3.33429666507403E-14</p>
+            <p>80.7196100490157,47.1219525976209,-3.33429666507403E-14</p>
+            <p>80.4166271572188,46.3189463748255,-3.33642300812127E-14</p>
+            <p>80.1128466262052,45.3733271997749,-3.33828579430434E-14</p>
+            <p>79.8836247573991,44.5147315520761,-3.33941348306289E-14</p>
+            <p>79.7194362501022,43.7479961277505,-3.33993055140048E-14</p>
+            <p>79.6104713975923,43.0772199560381,-3.33996350314223E-14</p>
+            <p>79.5466861511901,42.5057486986208,-3.33964023331712E-14</p>
+            <p>79.5178530107873,42.0361621154027,-3.33908938861018E-14</p>
+            <p>79.5136125501867,41.6702647386057,-3.33843972628268E-14</p>
+            <p>79.5235253835746,41.409079785682,-3.33781947396125E-14</p>
+            <p>79.5371243780681,41.2528463301969,-3.33735569269204E-14</p>
+            <p>79.5439669165482,41.2010197384376,-3.33717364564278E-14</p>
+            <p b="0.036490087535986475">80.1375019831157,37.6277607455369,-3.32314934929351E-14</p>
+            <p>74.7253524594849,36.3173648398726,-3.38610055607933E-14</p>
+            <p>73.6186476915376,39.766374590829,-3.40609376586063E-14</p>
+            <p>73.6010255313188,39.8155912080989,-3.40640119566109E-14</p>
+            <p>73.5416530396598,39.9607419314805,-3.40739738958312E-14</p>
+            <p>73.4309950173796,40.197534342686,-3.40918945565266E-14</p>
+            <p>73.2598529533894,40.5209678996741,-3.41187907299692E-14</p>
+            <p>73.0194116989918,40.9253574548158,-3.41556197235889E-14</p>
+            <p>72.7012846036344,41.4043596540929,-3.42032744074027E-14</p>
+            <p>72.2975569415597,41.9510021208803,-3.42625785205089E-14</p>
+            <p>71.8008274646557,42.557715318049,-3.43342822555323E-14</p>
+            <p>71.2042479232333,43.2163669726766,-3.44190581379457E-14</p>
+            <p>70.5015604034111,43.918298938562,-3.45174972161817E-14</p>
+            <p b="0.019649794698065066">69.8648171605604,44.4937775821745,-3.46055376657406E-14</p>
+            <p>66.4181927567484,43.0583386834508,-3.49949182316566E-14</p>
+            <p>66.4181927567484,43.0583386834508,-3.49949182316566E-14</p>
+            <p>66.3781814726113,42.2010075200656,-3.49833337662232E-14</p>
+            <p>66.3814814143647,41.2077968950568,-3.49639076290672E-14</p>
+            <p>66.4287991087954,40.3203904565064,-3.49411843128054E-14</p>
+            <p>66.5095808353355,39.5404446958915,-3.49164720545003E-14</p>
+            <p>66.6132303387892,38.8688266555939,-3.48910691123756E-14</p>
+            <p>66.7291612948943,38.3056144672229,-3.48662574302655E-14</p>
+            <p>66.8468495833734,37.850101156903,-3.48432963879329E-14</p>
+            <p>66.9558851733149,37.5008016980154,-3.48234166604905E-14</p>
+            <p>67.0460234272317,37.2554632805581,-3.48078142097541E-14</p>
+            <p>67.1072356323948,37.1110787550607,-3.47976444298754E-14</p>
+            <p>67.129758570818,37.0639031979256,-3.47940164690497E-14</p>
+            <p b="0.036490087535986475">68.7984417176362,33.8489443706443,-3.45305951616334E-14</p>
+            <p>64.0561162502338,30.9302376267352,-3.50482795258014E-14</p>
+            <p>61.9377748422519,33.8684502440965,-3.53607866778362E-14</p>
+            <p>61.9058064008027,33.909812481676,-3.53654457339045E-14</p>
+            <p>61.804485765451,34.0295119140719,-3.53799938524955E-14</p>
+            <p>61.6260708530797,34.2205196703097,-3.54052328088064E-14</p>
+            <p>61.3633586122491,34.4752374560463,-3.54418882720877E-14</p>
+            <p>61.0097221455811,34.7855343438278,-3.54906060203743E-14</p>
+            <p>60.5591454786115,35.1427858279335,-3.55519484832673E-14</p>
+            <p>60.0062558427029,35.5379149993749,-3.56263916260124E-14</p>
+            <p>59.3463533482211,35.9614356890942,-3.57143221869391E-14</p>
+            <p>58.5754379332102,36.4034974204003,-3.5816035279096E-14</p>
+            <p>57.6902334822102,36.8539320051914,-3.59317323656553E-14</p>
+            <p b="0.019649794698065066">56.9068219911139,37.2044802360932,-3.60332037649924E-14</p>
+            <p>54.0724624067393,34.7742312037131,-3.63294714584851E-14</p>
+            <p>54.0724624067393,34.7742312037131,-3.63294714584851E-14</p>
+            <p>54.2993393135284,33.9464966473879,-3.62861730653363E-14</p>
+            <p>54.6093967067588,33.0029169485017,-3.62305944948481E-14</p>
+            <p>54.9286221788121,32.1735652442299,-3.61760952912577E-14</p>
+            <p>55.2464666609566,31.4567556725762,-3.61239190992947E-14</p>
+            <p>55.5525845848078,30.8500384169156,-3.60752703145957E-14</p>
+            <p>55.8368836136966,30.350216430719,-3.60313083889448E-14</p>
+            <p>56.0895731813996,29.953365209859,-3.59931423381515E-14</p>
+            <p>56.301211658644,29.6548555336291,-3.5961825472774E-14</p>
+            <p>56.4627519727669,29.4493790853125,-3.59383503711021E-14</p>
+            <p>56.565585511467,29.3309768531445,-3.59236441129483E-14</p>
+            <p>56.6015841476941,29.2930702028576,-3.59185637918727E-14</p>
+            <p b="0.036490087535986475">59.1820730419534,26.7511141111449,-3.55577496534669E-14</p>
+            <p>55.5737834892523,22.509799880911,-3.5912931761461E-14</p>
+            <p>52.6511634576019,24.6496026419587,-3.6307423590311E-14</p>
+            <p>52.6079780287088,24.6790616758456,-3.63132113435734E-14</p>
+            <p>52.4746272193953,24.7615928028181,-3.63309215703246E-14</p>
+            <p>52.2459199116443,24.8881187340783,-3.63610082573574E-14</p>
+            <p>51.91735359853,25.0491871969723,-3.64038349183377E-14</p>
+            <p>51.4851383208793,25.2350173960519,-3.64596725886524E-14</p>
+            <p>50.9462176658138,25.4355479006043,-3.65286982029584E-14</p>
+            <p>50.2982867458422,25.6404857803722,-3.66109933618546E-14</p>
+            <p>49.5398070877524,25.8393568066903,-3.67065434927331E-14</p>
+            <p>48.670018371258,26.0215565323899,-3.68152374084963E-14</p>
+            <p>47.6889469683261,26.1764020605647,-3.69368672664376E-14</p>
+            <p b="0.019649794698065066">46.8355530040817,26.2677057755026,-3.70418368879928E-14</p>
+            <p>44.8909051034071,23.0805363172961,-3.72159909630049E-14</p>
+            <p>44.8909051034071,23.0805363172961,-3.72159909630049E-14</p>
+            <p>45.3624619087421,22.3634227935694,-3.71452169905397E-14</p>
+            <p>45.9489261755018,21.5618381760395,-3.70589264044375E-14</p>
+            <p>46.5088114117995,20.8717239292931,-3.6977986075284E-14</p>
+            <p>47.032605817083,20.2882168617801,-3.69034533188656E-14</p>
+            <p>47.5112272060967,19.8057901029883,-3.68363207735944E-14</p>
+            <p>47.9360651379952,19.4182843774393,-3.6777511903986E-14</p>
+            <p>48.2990209694429,19.1189418085623,-3.67278768037023E-14</p>
+            <p>48.5925456852646,18.9004421219388,-3.66881883133704E-14</p>
+            <p>48.8096753681293,18.7549411091626,-3.66591384672753E-14</p>
+            <p>48.9440641771152,18.6741112057655,-3.66413352818591E-14</p>
+            <p>48.9900147138168,18.6491840293678,-3.66352998977569E-14</p>
+            <p b="0.036490087535986475">52.2297131232232,17.02905504633,-3.62124119301687E-14</p>
+            <p>50.1086640070727,11.8803027176006,-3.63703240825592E-14</p>
+            <p>46.6678517635429,13.0122368192008,-3.68081849794304E-14</p>
+            <p>46.617676637876,13.0269089939054,-3.6814534884272E-14</p>
+            <p>46.4653489609252,13.0641930937182,-3.68336736187947E-14</p>
+            <p>46.2087367225773,13.1138519602908,-3.6865662941996E-14</p>
+            <p>45.8464786971617,13.1655045969643,-3.69104686287079E-14</p>
+            <p>45.3779928513275,13.2086777527008,-3.69679604408361E-14</p>
+            <p>44.8034815167631,13.2328579547363,-3.70379124984973E-14</p>
+            <p>44.123933305575,13.2275437952731,-3.71200040500079E-14</p>
+            <p>43.3411217574513,13.1822982765177,-3.72138206382906E-14</p>
+            <p>42.4576007192174,13.0868010179992,-3.73188556598703E-14</p>
+            <p>41.4766964687987,12.9309001303878,-3.74345123112532E-14</p>
+            <p b="0.019649794698065066">40.6368561785722,12.754021885593,-3.75327049971024E-14</p>
+            <p>39.7722756472751,9.12191435444475,-3.75676980393688E-14</p>
+            <p>39.7722756472751,9.12191435444475,-3.75676980393688E-14</p>
+            <p>40.4423530855193,8.58561793144283,-3.74763763371235E-14</p>
+            <p>41.2478170172414,8.00449308260134,-3.73678204591968E-14</p>
+            <p>41.9935565499049,7.52116948416065,-3.72683620078421E-14</p>
+            <p>42.6720282324484,7.12808265808925,-3.71787684724667E-14</p>
+            <p>43.2763022903151,6.81716968858176,-3.70997235678947E-14</p>
+            <p>43.8000930284286,6.57991198400855,-3.70318243762317E-14</p>
+            <p>44.2377864779782,6.40737980339825,-3.69755788559011E-14</p>
+            <p>44.5844651880866,6.29027837808456,-3.69314037265744E-14</p>
+            <p>44.8359300735014,6.21899545374468,-3.68996227373943E-14</p>
+            <p>44.9887192398096,6.18365007323786,-3.6880465324546E-14</p>
+            <p>45.0401237182946,6.17414241643322,-3.68740656628645E-14</p>
+            <p b="0.036490087535986475">48.621907390229,5.63443005503267,-3.64304990867952E-14</p>
+            <p>48.195721776338,0.0822353792102533,-3.63756837418672E-14</p>
+            <p>44.5735279968738,0.0954992248497351,-3.68140528314176E-14</p>
+            <p>44.5212746653248,0.0939483256847367,-3.68203433149101E-14</p>
+            <p>44.3648810150865,0.0823357708745607,-3.68390371245217E-14</p>
+            <p>44.1054828399517,0.0502666169059914,-3.68697977460541E-14</p>
+            <p>43.7449934417637,-0.0125526926037911,-3.69121965657025E-14</p>
+            <p>43.286095686467,-0.116262669498618,-3.69657148205044E-14</p>
+            <p>42.7322308446877,-0.270799696628676,-3.70297459267322E-14</p>
+            <p>42.0875842558862,-0.485845708369145,-3.71035981778296E-14</p>
+            <p>41.3570678662263,-0.770778825577882,-3.71864978021971E-14</p>
+            <p>40.546299701328,-1.1346251312822,-3.7277592369859E-14</p>
+            <p>39.6615803458164,-1.58601176957507,-3.73759545358188E-14</p>
+            <p b="0.019649794698065066">38.9175031487267,-2.01375789911896,-3.74577585017223E-14</p>
+            <p>39.2176211530958,-5.73526751167887,-3.73501651484552E-14</p>
+            <p>39.2176211530958,-5.73526751167887,-3.73501651484552E-14</p>
+            <p>40.0206273758913,-6.03825040347576,-3.72472349209211E-14</p>
+            <p>40.9662465509415,-6.34203093448929,-3.71270399568547E-14</p>
+            <p>41.8248421986403,-6.5712528032953,-3.70187990694854E-14</p>
+            <p>42.5915776229665,-6.73544131059229,-3.69229147946302E-14</p>
+            <p>43.2623537946779,-6.84440616310211,-3.68396949967551E-14</p>
+            <p>43.8338250520955,-6.90819140950446,-3.67693519289988E-14</p>
+            <p>44.3034116353138,-6.9370245499072,-3.67120016920372E-14</p>
+            <p>44.6693090121105,-6.94126501050775,-3.66676640931604E-14</p>
+            <p>44.9304939650347,-6.93135217711989,-3.66362629055471E-14</p>
+            <p>45.0867274205199,-6.91775318262646,-3.66176265263142E-14</p>
+            <p>45.1385540122784,-6.91091064414623,-3.66114890305277E-14</p>
+            <p b="0.036490087535986475">48.7118130051795,-6.31737557757877,-3.61906632329529E-14</p>
+            <p>50.0222089108436,-11.7295251012094,-3.59284860985891E-14</p>
+            <p>46.5731991598875,-12.8362298691565,-3.63244527600364E-14</p>
+            <p>46.523982542618,-12.853852029375,-3.63300680658273E-14</p>
+            <p>46.3788318192356,-12.9132245210339,-3.63464870701957E-14</p>
+            <p>46.1420394080303,-13.0238825433143,-3.63730079261016E-14</p>
+            <p>45.8186058510423,-13.1950246073048,-3.64088495868093E-14</p>
+            <p>45.4142162959002,-13.4354658617026,-3.64531555446212E-14</p>
+            <p>44.9352140966235,-13.7535929570602,-3.6504997888607E-14</p>
+            <p>44.3885716298366,-14.1573206191348,-3.65633816663951E-14</p>
+            <p>43.7818584326674,-14.6540500960388,-3.66272495340185E-14</p>
+            <p>43.12320677804,-15.2506296374605,-3.66954866767866E-14</p>
+            <p>42.4212748121547,-15.953317157283,-3.67669259831897E-14</p>
+            <p b="0.019649794698065066">41.8457961685425,-16.5900604001335,-3.68243336870033E-14</p>
+            <p>43.2812350672661,-20.0366848039456,-3.65846859252675E-14</p>
+            <p>43.2812350672661,-20.0366848039456,-3.65846859252675E-14</p>
+            <p>44.1385662306514,-20.0766960880825,-3.64802227002727E-14</p>
+            <p>45.1317768556597,-20.0733961463289,-3.6360154170597E-14</p>
+            <p>46.0191832942098,-20.026078451899,-3.62537262194272E-14</p>
+            <p>46.7991290548252,-19.9452967253587,-3.61609370259803E-14</p>
+            <p>47.470747095123,-19.8416472219045,-3.60816884684443E-14</p>
+            <p>48.0339592834937,-19.7257162658001,-3.60157871941759E-14</p>
+            <p>48.4894725938135,-19.6080279773205,-3.59629460813595E-14</p>
+            <p>48.8387720527015,-19.4989923873794,-3.59227860860288E-14</p>
+            <p>49.0841104701583,-19.4088541334623,-3.58948384670112E-14</p>
+            <p>49.2284949956561,-19.3476419282994,-3.58785473800401E-14</p>
+            <p>49.2756705527913,-19.3251189898758,-3.58732728309985E-14</p>
+            <p b="0.036490087535986475">52.4906293800725,-17.6564358430577,-3.55163811730506E-14</p>
+            <p>55.4093361239814,-22.3987613104607,-3.50725059738581E-14</p>
+            <p>52.4711235066202,-24.5171027184421,-3.5387310231518E-14</p>
+            <p>52.4297612690407,-24.5490711598911,-3.53917006943522E-14</p>
+            <p>52.3100618366443,-24.6503917952426,-3.54042376869318E-14</p>
+            <p>52.1190540804067,-24.8288067076144,-3.54239227310535E-14</p>
+            <p>51.8643362946705,-25.0915189484453,-3.5449698801347E-14</p>
+            <p>51.5540394068888,-25.4451554151129,-3.54804554863205E-14</p>
+            <p>51.1967879227827,-25.8957320820823,-3.55150343782282E-14</p>
+            <p>50.8016587513413,-26.4486217179913,-3.55522346717534E-14</p>
+            <p>50.3781380616225,-27.1085242124734,-3.55908189507561E-14</p>
+            <p>49.9360763303163,-27.8794396274839,-3.56295191416602E-14</p>
+            <p>49.4856417455248,-28.764644078484,-3.5667042611449E-14</p>
+            <p b="0.019649794698065066">49.135093514623,-29.54805556958,-3.56944345871403E-14</p>
+            <p>51.5653425470033,-32.382415153955,-3.53461908095785E-14</p>
+            <p>51.5653425470033,-32.382415153955,-3.53461908095785E-14</p>
+            <p>52.393077103329,-32.1555382471654,-3.52504201754237E-14</p>
+            <p>53.3366568022146,-31.8454808539358,-3.51422312243899E-14</p>
+            <p>54.1660085064864,-31.5262553818824,-3.50480341188073E-14</p>
+            <p>54.88281807814,-31.2084108997378,-3.49674228595236E-14</p>
+            <p>55.4895353338007,-30.9022929758863,-3.48999029432957E-14</p>
+            <p>55.9893573199976,-30.617993946997,-3.48448943384015E-14</p>
+            <p>56.386208540858,-30.3653043792942,-3.48017348060185E-14</p>
+            <p>56.6847182170874,-30.1536659020504,-3.47696835543882E-14</p>
+            <p>56.890194665404,-29.9921255879276,-3.47479252116379E-14</p>
+            <p>57.008596897572,-29.8892920492273,-3.47355741020282E-14</p>
+            <p>57.046503547859,-29.8532934129995,-3.47316788093417E-14</p>
+            <p b="0.036490087535986475">59.588459639572,-27.2728045187405,-3.44736563331111E-14</p>
+            <p>63.8297738698054,-30.8810940714421,-3.38915326662471E-14</p>
+            <p>61.6899711087578,-33.8037141030921,-3.40943592860095E-14</p>
+            <p>61.6605120748707,-33.8468995319854,-3.40970951367948E-14</p>
+            <p>61.5779809478985,-33.9802503412993,-3.41045229094015E-14</p>
+            <p>61.4514550166382,-34.2089576490495,-3.41154452324667E-14</p>
+            <p>61.2903865537438,-34.5375239621642,-3.41286325709932E-14</p>
+            <p>61.1045563546643,-34.9697392398142,-3.41428293045086E-14</p>
+            <p>60.9040258501125,-35.5086598948803,-3.41567599214729E-14</p>
+            <p>60.6990879703438,-36.1565908148522,-3.41691353068153E-14</p>
+            <p>60.5002169440262,-36.9150704729416,-3.4178659099136E-14</p>
+            <p>60.3180172183268,-37.7848591894363,-3.41840340938503E-14</p>
+            <p>60.1631716901517,-38.7659305923679,-3.41839686683604E-14</p>
+            <p b="0.019649794698065066">60.0718679752139,-39.6193245566122,-3.41786635984978E-14</p>
+            <p>63.2590374334203,-41.5639724572869,-3.37559123324149E-14</p>
+            <p>63.2590374334203,-41.5639724572869,-3.37559123324149E-14</p>
+            <p>63.9761509571467,-41.0924156519517,-3.36782089860444E-14</p>
+            <p>64.7777355746766,-40.5059513851923,-3.35924899019764E-14</p>
+            <p>65.4678498214231,-39.9460661488948,-3.35197443109853E-14</p>
+            <p>66.0513568889363,-39.4222717436111,-3.3459201777575E-14</p>
+            <p>66.5337836477287,-38.9436503545976,-3.34100198224944E-14</p>
+            <p>66.9212893732776,-38.5188124226993,-3.33712885124892E-14</p>
+            <p>67.2206319421547,-38.1558565912512,-3.33420353162794E-14</p>
+            <p>67.4391316287782,-37.8623318754293,-3.33212302081731E-14</p>
+            <p>67.5846326415543,-37.645202192565,-3.3307790999878E-14</p>
+            <p>67.6654625449514,-37.5108133835784,-3.33005888802934E-14</p>
+            <p>67.6903897213491,-37.4648628468777,-3.32984541423503E-14</p>
+            <p b="0.036490087535986475">69.3105187043869,-34.2251644374713,-3.31645578855587E-14</p>
+            <p>74.4592710331164,-36.3462135536213,-3.25011680714299E-14</p>
+            <p>73.3273369315163,-39.7870257971509,-3.25721629705764E-14</p>
+            <p>73.3126647568116,-39.8372009228178,-3.2572976405176E-14</p>
+            <p>73.2753806569988,-39.9895285997685,-3.25745678756748E-14</p>
+            <p>73.2257217904262,-40.246140838117,-3.25756583246015E-14</p>
+            <p>73.1740691537527,-40.6083988635323,-3.25749660627844E-14</p>
+            <p>73.1308959980161,-41.0768847093672,-3.25712131696508E-14</p>
+            <p>73.1067157959806,-41.6513960439312,-3.25631318858231E-14</p>
+            <p>73.112029955444,-42.3309442551191,-3.25494709740408E-14</p>
+            <p>73.1572754741992,-43.1137558032433,-3.25290020245311E-14</p>
+            <p>73.2527727327177,-43.9972768414771,-3.25005256811233E-14</p>
+            <p>73.4086736203292,-44.9781810918951,-3.24628777646575E-14</p>
+            <p b="0.019649794698065066">73.5855518651239,-45.8180213821219,-3.24253949464415E-14</p>
+            <p>77.2176593962722,-46.6826019134195,-3.19695180312429E-14</p>
+            <p>77.2176593962722,-46.6826019134195,-3.19695180312429E-14</p>
+            <p>77.7539558192741,-46.0125244751747,-3.19174881175905E-14</p>
+            <p>78.3350806681156,-45.2070605434528,-3.18626296816769E-14</p>
+            <p>78.8184042665563,-44.4613210107894,-3.18184564505718E-14</p>
+            <p>79.2114910926276,-43.782849328246,-3.17839089680299E-14</p>
+            <p>79.5224040621352,-43.1785752703788,-3.17578792465308E-14</p>
+            <p>79.7596617667084,-42.6547845322651,-3.17392165218946E-14</p>
+            <p>79.9321939473187,-42.2170910827162,-3.17267331685221E-14</p>
+            <p>80.0492953726323,-41.8704123726078,-3.1719210752879E-14</p>
+            <p>80.1205782969723,-41.6189474871924,-3.17154062023834E-14</p>
+            <p>80.155923677479,-41.4661583208851,-3.1714058066469E-14</p>
+            <p>80.1654313342837,-41.4147538423999,-3.17138928462927E-14</p>
+            <p b="0.036490087535986475">80.7051436956844,-37.8329701704647,-3.1717229507465E-14</p>
+            <p>86.2573383715066,-38.2591557843562,-3.10375107631871E-14</p>
+            <p>86.2440745258672,-41.8813495638203,-3.09697244663386E-14</p>
+            <p>86.2456254250321,-41.9336028953697,-3.09685358601063E-14</p>
+            <p>86.2572379798424,-42.0899965456079,-3.09641352442764E-14</p>
+            <p>86.289307133811,-42.3493947207428,-3.0955287078326E-14</p>
+            <p>86.3521264433208,-42.7098841189304,-3.09407829795754E-14</p>
+            <p>86.4558364202155,-43.1687818742272,-3.09194478191207E-14</p>
+            <p>86.6103734473457,-43.7226467160061,-3.08901456868674E-14</p>
+            <p>86.8254194590861,-44.3672933048081,-3.0851785703187E-14</p>
+            <p>87.1103525762948,-45.097809694468,-3.08033276552404E-14</p>
+            <p>87.4741988819992,-45.9085778593656,-3.07437874366095E-14</p>
+            <p>87.9255855202921,-46.7932972148773,-3.06722422695399E-14</p>
+            <p b="0.019649794698065066">88.3533316498359,-47.5373744119678,-3.06062507823758E-14</p>
+            <p>92.0748412623957,-47.2372564075987,-3.01618726268025E-14</p>
+            <p>92.0748412623957,-47.2372564075987,-3.01618726268025E-14</p>
+            <p>92.3778241541927,-46.4342501848032,-3.01406091963301E-14</p>
+            <p>92.6816046852062,-45.4886310097526,-3.01219813344994E-14</p>
+            <p>92.9108265540123,-44.6300353620538,-3.01107044469139E-14</p>
+            <p>93.0750150613092,-43.8632999377282,-3.0105533763538E-14</p>
+            <p>93.1839799138192,-43.1925237660157,-3.01052042461204E-14</p>
+            <p>93.2477651602214,-42.6210525085984,-3.01084369443715E-14</p>
+            <p>93.2765983006242,-42.1514659253803,-3.01139453914409E-14</p>
+            <p>93.2808387612248,-41.7855685485833,-3.0120442014716E-14</p>
+            <p>93.2709259278368,-41.5243835956597,-3.01266445379303E-14</p>
+            <p>93.2573269333434,-41.3681501401745,-3.01312823506223E-14</p>
+            <p>93.2504843948633,-41.3163235484152,-3.0133102821115E-14</p>
+            <p b="0.036490087535986475">92.6569493282958,-37.7430645555146,-3.02733457846076E-14</p>
+            <p>98.0690988519264,-36.4326686498502,-2.96438337167494E-14</p>
+            <p>99.1758036198735,-39.8816784008066,-2.94439016189364E-14</p>
+            <p>99.1934257800919,-39.9308950180764,-2.94408273209319E-14</p>
+            <p>99.2527982717509,-40.0760457414581,-2.94308653817116E-14</p>
+            <p>99.3634562940313,-40.3128381526637,-2.94129447210161E-14</p>
+            <p>99.5345983580218,-40.6362717096518,-2.93860485475735E-14</p>
+            <p>99.7750396124196,-41.0406612647935,-2.93492195539538E-14</p>
+            <p>100.093166707777,-41.5196634640706,-2.930156487014E-14</p>
+            <p>100.496894369852,-42.066305930858,-2.92422607570338E-14</p>
+            <p>100.993623846756,-42.6730191280267,-2.91705570220104E-14</p>
+            <p>101.590203388177,-43.3316707826542,-2.9085781139597E-14</p>
+            <p>102.292890908,-44.0336027485397,-2.8987342061361E-14</p>
+            <p b="0.019649794698065066">102.92963415085,-44.6090813921521,-2.88993016118021E-14</p>
+            <p>106.376258554662,-43.1736424934284,-2.85099210458862E-14</p>
+            <p>106.376258554662,-43.1736424934284,-2.85099210458862E-14</p>
+            <p>106.416269838799,-42.3163113300431,-2.85215055113196E-14</p>
+            <p>106.412969897046,-41.3231007050344,-2.85409316484756E-14</p>
+            <p>106.365652202616,-40.435694266484,-2.85636549647373E-14</p>
+            <p>106.284870476076,-39.6557485058691,-2.85883672230424E-14</p>
+            <p>106.181220972621,-38.9841304655714,-2.86137701651672E-14</p>
+            <p>106.065290016517,-38.4209182772005,-2.86385818472772E-14</p>
+            <p>105.947601728037,-37.9654049668806,-2.86615428896098E-14</p>
+            <p>105.838566138096,-37.6161055079931,-2.86814226170522E-14</p>
+            <p>105.748427884179,-37.3707670905356,-2.86970250677887E-14</p>
+            <p>105.687215679016,-37.2263825650383,-2.87071948476674E-14</p>
+            <p>105.664692740593,-37.1792070079032,-2.87108228084931E-14</p>
+            <p b="0.036490087535986475">103.996009593775,-33.9642481806218,-2.89742441159093E-14</p>
+          </pts>
+        </pline>
+        <pline id="2" Closed="true">
+          <ModificationCount>401</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>79.9422023243952,-22.4754371245503,-3.21037147539091E-14</p>
+            <p b="0.2896898730411448">80.7239736436985,-17.5395272731693,-3.21037147539091E-14</p>
+            <p b="-0.020174678347342993">78.2871849555464,-11.8845011736101,-3.25067852109849E-14</p>
+            <p b="-0.084029286039332213">77.3557117086185,-11.1904940662717,-3.26327447789222E-14</p>
+            <p b="0.45797253836853369">74.177754707088,-7.58498758894716,-3.30861989452916E-14</p>
+            <p b="-0.057355426402256909">65.5628552687938,-6.22052156296076,-3.41543355381887E-14</p>
+            <p b="0.44027537947308043">62.8216967550568,-8.04503441511696,-3.4450934414776E-14</p>
+            <p b="0.082507988535735821">60.5664218630049,-16.2371546348339,-3.45667795762042E-14</p>
+            <p b="0.041841541401691489">67.2060351255314,-23.7243047454216,-3.36202670062964E-14</p>
+            <p b="0.52287745925706286">71.4240917753734,-26.5917657156525,-3.30551485127547E-14</p>
+          </pts>
+        </pline>
+        <pline id="3" Closed="true">
+          <ModificationCount>401</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>85.6312869225991,-23.3765011813637,-3.13983414941075E-14</p>
+            <p b="-0.28968985356441707">86.4130585826725,-18.4405891784455,-3.13983414941075E-14</p>
+            <p b="0.17293727527228572">90.4780811145678,-13.8153489897099,-3.09952710828384E-14</p>
+            <p b="-0.28968984844899193">98.3028335541689,-8.13033368406781,-3.01577524587748E-14</p>
+            <p>103.957859358574,-5.69354542735041,-2.95204421606167E-14</p>
+            <p b="-0.52287744171661388">108.893772984245,-6.47531734444255,-2.89084524327363E-14</p>
+            <p b="-0.21788709444512511">113.01010173122,-14.9934276170164,-2.82473883780652E-14</p>
+            <p b="-0.52287740187461262">92.4604749599915,-29.9236034362588,-3.04469078544183E-14</p>
+          </pts>
+        </pline>
+        <pline id="4" Closed="true">
+          <ModificationCount>401</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.2178871127899506">101.411759478404,26.5925827501564,-3.04469078544183E-14</p>
+            <p b="-0.52287741941505983">116.341938292765,6.04295575117908,-2.8247388286707E-14</p>
+            <p>109.794836100687,-0.786232597298409,-2.89084523586155E-14</p>
+            <p b="-0.28968987815657021">104.858922812748,-0.00446073369775499,-2.95204420446215E-14</p>
+            <p b="0.17293730349950326">100.233682476624,4.06056229972405,-3.01577523759211E-14</p>
+            <p b="-0.28968985356441651">94.5486665781552,11.8853161466293,-3.09952710828384E-14</p>
+            <p>92.1118782316949,17.5403420124293,-3.13983414941075E-14</p>
+            <p b="-0.52287740187461251">92.8936498337641,22.4762536491241,-3.13983414941075E-14</p>
+          </pts>
+        </pline>
+        <pline id="5" Closed="true">
+          <ModificationCount>401</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>87.2045647483121,23.377314629574,-3.21037147539091E-14</p>
+            <p b="-0.28968987304114552">86.4227934870129,18.4414051444167,-3.21037147539091E-14</p>
+            <p b="0.020174678347343013">82.3577705579137,13.8161648389513,-3.25067852109849E-14</p>
+            <p b="0.0840292860393321">81.2574268662839,13.4439659202683,-3.26327447789222E-14</p>
+            <p b="-0.45797253836853347">77.1208473766501,10.9969682113302,-3.30861989452916E-14</p>
+            <p b="0.057355423355804937">68.505947938356,12.3614342373166,-3.41543355381887E-14</p>
+            <p b="-0.44027537947307988">66.4627568729352,14.9437135155933,-3.44509343974663E-14</p>
+            <p b="-0.08250798547860165">66.8493674617631,23.4318010967637,-3.45667795463348E-14</p>
+            <p b="-0.04184154140169178">75.4776712597819,28.5007504260432,-3.36202670062964E-14</p>
+            <p b="-0.52287745925706175">80.3753756932245,29.9244166789661,-3.30551485127547E-14</p>
+          </pts>
+        </pline>
+        <circle id="6" c="86.4179265920867,0.000407056555486848,-1.05836761214979E-14" d="18.288">
+          <ModificationCount>302959</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="7" Closed="true">
+          <ModificationCount>401</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-0.34872473846972568">91.9906842751989,-7.15819137526133,-3.09398488752364E-14</p>
+            <p b="-0.073872777804093792">80.7087307521321,-7.04986038362902,-3.2306509646264E-14</p>
+            <p>78.9057889201409,-5.08574896419569,-3.25622073727802E-14</p>
+            <p b="-0.073872777804093612">80.8451679161941,7.15900810966423,-3.25622073727802E-14</p>
+            <p b="-0.34872473846972585">83.1668113014612,8.46984940789123,-3.2306509646264E-14</p>
+            <p>93.9300628335449,5.08656293502392,-3.09398488752364E-14</p>
+          </pts>
+        </pline>
+        <circle id="10" c="86.4179265920867,0.000407056555486849,-1.05836761214979E-14" d="7.2">
+          <ModificationCount>302959</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="131" Closed="true">
+          <ModificationCount>27</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-84.0676806365168,17.8530267242117,0</p>
+            <p b="-0.37614855074296327">-54.0660330124592,13.8791911196228,0</p>
+            <p b="-0.37614855657220925">-41.9043323014961,0.000406744760288503,0</p>
+            <p>-54.0660332959588,-13.8783776676528,0</p>
+            <p b="-0.16530295699297784">-84.0676810011893,-17.852212659403,0</p>
+            <p b="-0.57735026918962573">-95.4366011020497,-15.5954480516288,0</p>
+            <p b="-0.16530295504858572">-95.4366011020497,15.5962621647398,0</p>
+          </pts>
+        </pline>
+        <pline id="149" Closed="true">
+          <ModificationCount>152</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>91.5462261077412,17.2633190156558,-1.05836760413361E-14</p>
+            <p b="-0.37614855074296327">120.55685916979,8.64511741035811,-1.05836760413361E-14</p>
+            <p b="-0.37614855657220925">130.397709592469,-6.96530484099133,-1.05836760413361E-14</p>
+            <p>116.214619585764,-18.7707097771489,-1.05836760413361E-14</p>
+            <p b="-0.16530295699297784">85.9606971661813,-18.0023297928409,-1.05836760413361E-14</p>
+            <p b="-0.57735026918962573">75.0847829378227,-13.9948592125327,-1.05836760413361E-14</p>
+            <p b="-0.16530295504858572">79.9642401806023,16.8128294907408,-1.05836760413361E-14</p>
+          </pts>
+        </pline>
+      </objects>
+      <ModificationCount>6</ModificationCount>
+    </layer>
+    <layer name="gear-circles" color="127,255,0" visible="false">
+      <objects>
+        <circle id="31" c="-0.00012426080918658,0.000407056555497434,0" d="86.4">
+          <ModificationCount>61</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="140" c="-86.4323272705078,0.000407056566327811,0" d="96.019538618131008">
+          <ModificationCount>61</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="32" c="-86.4323299570971,0.000407056555497434,0" d="86.4">
+          <ModificationCount>61</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="139" c="-86.4323272705078,0.000407056566327811,0" d="76.511307905102967">
+          <ModificationCount>61</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+      </objects>
+      <ModificationCount>0</ModificationCount>
+    </layer>
+    <layer name="body" color="100,149,237" pen="2" visible="false">
+      <objects>
+        <pline id="198" Closed="true">
+          <ModificationCount>303001</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>0,118.08,0</p>
+            <p b="0.30002108143037015">-8.98653350730278,118.08,0</p>
+            <p>-35.4579103718228,100.62487579908,0</p>
+            <p>-48.96,69.12,0</p>
+            <p b="-0.0086990862656547013">-49.5032244419183,68.5767755580814,0</p>
+            <p b="-0.0049293273954680627">-66.8980359110713,70.6421236631939,0</p>
+            <p>-76.7087872539993,72.0451075533624,0</p>
+            <p b="0.22542929236129866">-76.9483019076342,72.0718051726907,0</p>
+            <p>-88.6824883513143,68.1989788898119,0</p>
+            <p b="0.037851599477459384">-165.496098580807,-5.13615660823498,0</p>
+            <p b="0.64832107257725946">-166.952651031744,-6.75429208887453,0</p>
+            <p>-167.04,-6.86866380837745,0</p>
+            <p b="0.25436128676255942">-167.04,-24.2345210060756,0</p>
+            <p b="0.013424441328997875">-154.505600454296,-29.9134994697262,0</p>
+            <p>-153.736323502808,-29.83662479315,0</p>
+            <p b="-0.10613802726055226">-153.68799573736,-29.9180788146752,0</p>
+            <p>-53.30553993976,-30.8702753890583,0</p>
+            <p b="0.0027288030921731451">-53.2154024257268,-30.8927099931402,0</p>
+            <p>-50.1819144313003,-31.4529369099195,0</p>
+            <p b="0.25859252483733725">-40.6080152639542,-46.7711755776731,0</p>
+            <p>-21.070134339677,-57.6,0</p>
+            <p>0,-57.6,0</p>
+            <p b="0.25859252483733725">21.070134339677,-57.6,0</p>
+            <p>40.6080152639542,-46.7711755776731,0</p>
+            <p b="0.0027288030921731451">50.1819144313003,-31.4529369099195,0</p>
+            <p>53.2154024257268,-30.8927099931402,0</p>
+            <p b="-0.10613802726055226">53.30553993976,-30.8702753890583,0</p>
+            <p>153.68799573736,-29.9180788146752,0</p>
+            <p b="0.013424441328997875">153.736323502808,-29.83662479315,0</p>
+            <p b="0.25436128676255942">154.505600454296,-29.9134994697262,0</p>
+            <p>167.04,-24.2345210060756,0</p>
+            <p b="0.64832107257725946">167.04,-6.86866380837745,0</p>
+            <p b="0.037851599477459384">166.952651031744,-6.75429208887453,0</p>
+            <p>165.496098580807,-5.13615660823498,0</p>
+            <p b="0.22542929236129866">88.6824883513143,68.1989788898119,0</p>
+            <p>76.9483019076342,72.0718051726907,0</p>
+            <p b="-0.0049293273954680627">76.7087872539993,72.0451075533624,0</p>
+            <p b="-0.0086990862656547013">66.8980359110713,70.6421236631939,0</p>
+            <p>49.5032244419183,68.5767755580814,0</p>
+            <p>48.96,69.12,0</p>
+            <p b="0.30002108143037015">35.4579103718228,100.62487579908,0</p>
+            <p>8.98653350730278,118.08,0</p>
+          </pts>
+        </pline>
+      </objects>
+      <ModificationCount>3</ModificationCount>
+    </layer>
+    <layer name="logo outline" color="127,255,0" visible="false">
+      <objects>
+        <circle id="61" c="12.7600240233531,67.8390606340014,0" d="8.0167127863578784">
+          <ModificationCount>283</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <circle id="82" c="-4.62476740388136,76.5953459511422,0" d="8.0167127863578784">
+          <ModificationCount>283</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+        <pline id="99" Closed="true">
+          <ModificationCount>283</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p b="-1.3975819316914619">6.21308752966535,69.8635000763019,0</p>
+            <p>-9.09118572613039,88.546411000496,0</p>
+            <p b="-0.71552155714386068">9.09936175062122,95.3446833056325,0</p>
+            <p>16.4595351464055,86.359646143676,0</p>
+          </pts>
+        </pline>
+        <rect id="106" Closed="true" p="-17.3831704561135,63.8369428989101,0" w="34.766340912226937" h="31.896007630580328">
+          <ModificationCount>257</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-17.3831704561135,63.8369428989101,0</p>
+            <p>17.3831704561134,63.8369428989101,0</p>
+            <p>17.3831704561134,95.7329505294904,0</p>
+            <p>-17.3831704561135,95.7329505294904,0</p>
+          </pts>
+        </rect>
+        <pline id="107" Closed="true">
+          <ModificationCount>256</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-17.3831704561135,56.2201131789101,0</p>
+            <p b="0.41421356237309503">17.3831704561135,56.2201131789101,0</p>
+            <p>25.0000001761135,63.8369428989101,0</p>
+            <p b="0.41421356237309503">25.0000001761135,95.7329505294904,0</p>
+            <p>17.3831704561135,103.34978024949,0</p>
+            <p b="0.41421356237309503">-17.3831704561135,103.34978024949,0</p>
+            <p>-25.0000001761135,95.7329505294904,0</p>
+            <p b="0.41421356237309503">-25.0000001761135,63.8369428989101,0</p>
+          </pts>
+        </pline>
+      </objects>
+      <ModificationCount>0</ModificationCount>
+    </layer>
+    <layer name="solid-body" color="255,255,0">
+      <objects>
+        <script id="85">
+          <ModificationCount>238117</ModificationCount>
+          <mat m="Identity" />surfaces = Solids.ExtrudeSolid([198,45,43,145,29,10,138,83,107,99,82,61],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+      </objects>
+      <ModificationCount>0</ModificationCount>
+    </layer>
+    <layer name="solids-back" color="255,128,0">
+      <objects>
+        <script id="98">
+          <ModificationCount>267340</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -13 1" />surfaces = Solids.ExtrudeSolid([54,68,70],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="103">
+          <ModificationCount>267309</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -10 1" />surfaces = Solids.ExtrudeSolid([70,72,80,84],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="127">
+          <ModificationCount>267309</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -13 1" />surfaces = Solids.ExtrudeSolid([83,74,84],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="102">
+          <ModificationCount>267307</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -10 1" />surfaces = Solids.ExtrudeSolid([138,68,71],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="113">
+          <ModificationCount>237017</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -13 1" />surfaces = Solids.ExtrudeSolid([65,66,78],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="114">
+          <ModificationCount>237017</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -13 1" />surfaces = Solids.ExtrudeSolid([35,45,51],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="121">
+          <ModificationCount>237016</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -10 1" />surfaces = Solids.ExtrudeSolid([50,66,51,53],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="122">
+          <ModificationCount>237016</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -10 1" />surfaces = Solids.ExtrudeSolid([75,78,43],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+      </objects>
+      <ModificationCount>1</ModificationCount>
+    </layer>
+    <layer name="solids" color="255,255,128">
+      <objects>
+        <script id="100">
+          <ModificationCount>267311</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 13 1" />surfaces = Solids.ExtrudeSolid([30,40,48],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="101">
+          <ModificationCount>267310</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 10 1" />surfaces = Solids.ExtrudeSolid([138,39,40],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="104">
+          <ModificationCount>267309</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 10 1" />surfaces = Solids.ExtrudeSolid([15,22,27,30],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="105">
+          <ModificationCount>267310</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 13 1" />surfaces = Solids.ExtrudeSolid([83,21,22],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="95">
+          <ModificationCount>234853</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 13 1" />surfaces = Solids.ExtrudeSolid([111,47,46],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="96">
+          <ModificationCount>237017</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 10 1" />surfaces = Solids.ExtrudeSolid([159,46,43],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="108">
+          <ModificationCount>237017</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 10 1" />surfaces = Solids.ExtrudeSolid([120,47,169,19],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="110">
+          <ModificationCount>237015</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 13 1" />surfaces = Solids.ExtrudeSolid([186,169,45],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+      </objects>
+      <ModificationCount>7</ModificationCount>
+    </layer>
+    <layer name="gears-solid" color="255,69,0">
+      <objects>
+        <script id="123">
+          <ModificationCount>136</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 3 1" />surfaces = Solids.ExtrudeSolid([13,37,33,38,36,29],3,0.1)
+this.Entities.Add(surfaces)
+</script>
+        <script id="124">
+          <ModificationCount>135</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 3 1" />surfaces = Solids.ExtrudeSolid([16,116,117,118,119,145],3,0.1)
+
+this.Entities.Add(surfaces)
+</script>
+        <script id="125">
+          <ModificationCount>135</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 3 1" />surfaces = Solids.ExtrudeSolid([1,5,4,3,2,10],3,0.1)
+
+this.Entities.Add(surfaces)
+</script>
+        <script id="151">
+          <ModificationCount>114</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -3 1" />surfaces = Solids.ExtrudeSolid([131,145,53],3,0.1)
+
+this.Entities.Add(surfaces)
+</script>
+        <script id="152">
+          <ModificationCount>112</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 0 0 -3 1" />surfaces = Solids.ExtrudeSolid([149,10,80],3,0.1)
+
+this.Entities.Add(surfaces)
+</script>
+      </objects>
+      <ModificationCount>8</ModificationCount>
+    </layer>
+  </layers>
+  <MachiningOptions>
+    <OutFile />
+    <FastPlungeHeight>0.2</FastPlungeHeight>
+    <PostProcessor>Mach3-CV</PostProcessor>
+    <Stock>
+      <Material>Acrylic</Material>
+      <PMin>0,0,-3</PMin>
+      <PMax>180,200</PMax>
+      <Color>255,128,0</Color>
+    </Stock>
+    <ToolDiameter>3</ToolDiameter>
+    <ToolNumber>1</ToolNumber>
+    <ToolProfile>Unspecified</ToolProfile>
+  </MachiningOptions>
+  <parts>
+    <part Name="Part1">
+      <machineops />
+      <Stock>
+        <PMin>0,0</PMin>
+        <PMax>0,0</PMax>
+        <Color>0,0,0,0</Color>
+      </Stock>
+      <ToolProfile>Unspecified</ToolProfile>
+      <Nesting>
+        <BasePoint>0,0</BasePoint>
+        <NestMethod>None</NestMethod>
+      </Nesting>
+    </part>
+  </parts>
+  <ShowStock>false</ShowStock>import Solids
+<ActiveLayer>gears-solid</ActiveLayer><ActivePart>Part1</ActivePart></CADFile>

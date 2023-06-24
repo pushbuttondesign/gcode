@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>{$comment} Made using CamBam - http://www.cambam.co.uk {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$comment} Post processor: TurboCNC {$endcomment}
+{$tooltable}
+{$cbfile.header}
+{$units} {$distancemode}
+{$toolchange(first)}
+{$clearance}</Header>
+  <Footer>{$clearance}
+{$spindle(off)}
+{$cbfile.footer}
+{$endrewind}
+</Footer>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$workplane}
+{$mop.header}
+{$spindle}
+{$blocks}
+{$mop.footer}
+</MOP>
+  <Rapid>{$g0} {$_x} {$_y} {$_z} {$_f} {$_a} {$_b} {$_c}</Rapid>
+  <FeedMove>{$g1} {$_x} {$_y} {$_z} {$_f} {$_a} {$_b} {$_c}</FeedMove>
+  <ArcCW>{$g2} {$_x} {$_y} {$_z} {$i} {$j} {$k} {$_f}</ArcCW>
+  <ArcCCW>{$g3} {$_x} {$_y} {$_z} {$i} {$j} {$k} {$_f}</ArcCCW>
+  <Drill>{$g81} {$_x} {$_y} {$_z} {$_f} {$_r}</Drill>
+  <DrillDwell>{$g82} {$_x} {$_y} {$_z} {$_f} {$_r} {$p}</DrillDwell>
+  <DrillPeck>{$g83} {$_x} {$_y} {$_z} {$_f} {$_r} {$_q} {$p}</DrillPeck>
+  <MinimumArcLength>0.0001</MinimumArcLength>
+  <MaximumArcRadius>10000</MaximumArcRadius>
+</PostProcessor>

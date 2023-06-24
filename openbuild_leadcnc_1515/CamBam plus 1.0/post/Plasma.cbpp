@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>{$comment} Made using CamBam - http://www.cambam.co.uk {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$comment} Post processor: Plasma {$endcomment}
+{$cbfile.header}
+{$units} {$distancemode} {$velocitymode}
+{$clearance}
+( move to the X,Y location of first toolpath )
+G0 X{$mop.first.X} Y{$mop.first.y}
+( do a Z probe cycle )
+G31 Z-100 F1000
+( set this as Z=0 )
+G92 Z0
+( retract 5mm until tip clears plate )
+G0 Z5.0
+( set this as Z=0 )
+G92 Z0</Header>
+  <Footer>{$clearance}
+{$cbfile.footer}
+{$endrewind}
+</Footer>
+  <StartCut>( pierce height )
+G0 Z5
+( torch on )
+M3
+( plunge to cutting depth )
+G1 Z{$mop.targetdepth} F{$mop.plungefeedrate}</StartCut>
+  <EndCut>( torch off )
+M5
+( small delay - ms )
+( G4 P500 )
+</EndCut>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$velocitymode}
+{$mop.header}
+{$blocks}
+{$mop.footer}
+  </MOP>
+  <MinimumArcLength>0.0001</MinimumArcLength>
+  <MaximumArcRadius>10000</MaximumArcRadius>
+  <AddLineNumbers>true</AddLineNumbers>
+  <LineNumberFormat>0000</LineNumberFormat>
+</PostProcessor>

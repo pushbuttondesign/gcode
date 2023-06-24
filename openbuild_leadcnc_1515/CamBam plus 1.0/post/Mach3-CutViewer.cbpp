@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>{$comment} Made using CamBam - http://www.cambam.co.uk {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$comment} Post processor: Mach3-CutViewer {$endcomment}
+{$tooltable}
+{$comment} CUTVIEWER {$endcomment}
+{$comment} FROM/0,0,5 {$endcomment}
+{$comment} Select dummy tool to avoid warnings {$endcomment}
+{$comment} TOOL/MILL,1,0,20.0,0 {$endcomment}
+{$comment} STOCK/BLOCK,{$stock_width},{$stock_length},{$stock_height},{$stock_x},{$stock_y},{$stock_z} {$endcomment}
+{$cbfile.header}
+{$units} {$distancemode} {$velocitymode} {$cuttercomp(off)}
+{$arccentermode} 
+{$toolchange(first)}
+{$clearance}</Header>
+  <Footer>{$clearance}
+{$spindle(off)}
+{$cbfile.footer}
+{$endrewind}
+</Footer>
+  <ToolChange>{$clearance}
+{$comment} T{$tool.index} : {$tool.diameter} {$endcomment}
+{$comment} Tool Taper coming soon {$endcomment}
+{$comment} TOOL/MILL,{$tool.diameter},{$tool.radius},{$tool.length},0 {$endcomment}
+T{$tool.index} M6</ToolChange>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$velocitymode} {$workplane}
+{$mop.header}
+{$spindle} {$s}
+{$blocks}
+{$mop.footer}
+</MOP>
+  <MinimumArcLength>0.0001</MinimumArcLength>
+  <ArcCenterIncremental>G91.1</ArcCenterIncremental>
+  <ArcCenterAbsolute>G90.1</ArcCenterAbsolute>
+</PostProcessor>

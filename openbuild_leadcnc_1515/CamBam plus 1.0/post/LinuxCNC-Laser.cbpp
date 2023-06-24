@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>{$comment} Made using CamBam - http://www.cambam.co.uk {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$comment} Post-processor: LinuxCNC-Laser {$endcomment}
+{$tooltable}
+{$cbfile.header}
+{$units} {$distancemode} {$velocitymode} {$cuttercomp(off)}
+{$arccentermode} 
+{$toolchange(first)}
+{$clearance}</Header>
+  <Footer>{$clearance}
+{$spindle(off)}
+{$cbfile.footer}
+{$endrewind}
+</Footer>
+  <StartCut>M3</StartCut>
+  <EndCut>M5</EndCut>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$velocitymode} {$workplane}
+{$mop.header}
+{$spindle} {$s}
+{$blocks}
+{$mop.footer}
+</MOP>
+  <SpindleCW />
+  <SpindleCCW />
+  <SpindleOff />
+  <Drill>{$g81} {$_x} {$_y} {$_z} {$r} {$_f}</Drill>
+  <DrillDwell>{$g82} {$_x} {$_y} {$_z} {$p} {$r} {$_f}</DrillDwell>
+  <DrillPeck>{$g83} {$_x} {$_y} {$_z} {$q} {$r} {$_f}</DrillPeck>
+  <ArcCenterIncremental>G91.1</ArcCenterIncremental>
+  <ArcCenterAbsolute>G90.1</ArcCenterAbsolute>
+</PostProcessor>

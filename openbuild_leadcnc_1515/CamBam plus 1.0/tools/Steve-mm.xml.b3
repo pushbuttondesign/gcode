@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ToolLibrary Version="0.9.8.0" NumberFormat="0.00">
+<ToolDefinition Name="Tool">
+<Index>1</Index>
+<Diameter>0</Diameter>
+<ToolProfile>Unspecified</ToolProfile>
+<Flutes>0</Flutes>
+<FluteLength>0</FluteLength>
+<Length>0</Length>
+<ShankDiameter>0</ShankDiameter>
+<HelixAngle>0</HelixAngle>
+<VeeAngle>0</VeeAngle>
+<MaxRampAngle>0</MaxRampAngle>
+<ToothLoad>0</ToothLoad>
+<AxialDepthOfCut>0</AxialDepthOfCut>
+<RadialDepthOfCut>0</RadialDepthOfCut>
+</ToolDefinition>
+</ToolLibrary>

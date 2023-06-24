@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>%
+O{$o}
+: {$cbfile.name}
+: 
+{$comment} CamBam {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$tooltable}
+{$comment} CUTVIEWER {$endcomment}
+{$comment} FROM/0,0,5 {$endcomment}
+{$comment} Select dummy tool to avoid warnings {$endcomment}
+{$comment} TOOL/MILL,1,0,20.0,0 {$endcomment}
+{$comment} STOCK/BLOCK,{$stock_width},{$stock_length},{$stock_height},{$stock_x},{$stock_y},{$stock_z} {$endcomment}
+{$cbfile.header}
+{$units}
+G0 G17 {$cuttercomp(off)} G80 {$distancemode}
+{$toolchange(first)}
+{$clearance}</Header>
+  <Footer>{$clearance}
+M25 ; Go To Z Home
+M09 ; Coolant Off 	
+{$spindle(off)}
+G28 
+{$cbfile.footer}
+M2 ; End Of Program
+</Footer>
+  <PostProcessorMacros># default program address
+$o=1</PostProcessorMacros>
+  <ToolTableItem>{$comment} T{$tool.index} DIA {$tool.diameter} {$endcomment}</ToolTableItem>
+  <ToolChange>{$comment} T{$tool.index} : {$tool.diameter} {$endcomment}
+{$comment} TOOL/MILL,{$tool.diameter},{$tool.radius},{$tool.length},0 {$endcomment}
+M9  ; Coolant Off
+M5  ; spindle off
+M25
+M1  ; OPTIONAL STOP
+G28 ; Go To Machine Return Position
+T{$tool.index} M6
+G0 X{$mop.first.x} Y{$mop.first.y}
+G43 H{$tool.index}</ToolChange>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$workplane}
+{$mop.header}
+{$spindle} {$s}
+{$blocks}
+{$mop.footer}
+M1 ; Optional Stop
+</MOP>
+  <CannedCycleStart>G99</CannedCycleStart>
+  <Rapid>{$_g0} {$_f} {$_x} {$_y} {$_z} {$_a} {$_b} {$_c}</Rapid>
+  <FeedMove>{$_g1} {$_f} {$_x} {$_y} {$_z} {$_a} {$_b} {$_c}</FeedMove>
+  <ArcCW>{$_g2} {$_f} {$_x} {$_y} {$_z} {$i} {$j} {$k}</ArcCW>
+  <ArcCCW>{$_g3} {$_f} {$_x} {$_y} {$_z} {$i} {$j} {$k}</ArcCCW>
+  <Drill>{$_g81} {$_x} {$_y} {$_z} {$_r} {$_f}</Drill>
+  <DrillDwell>{$_g82} {$_x} {$_y} {$_z} {$p} {$_r} {$_f}</DrillDwell>
+  <DrillPeck>{$_g83} {$_x} {$_y} {$_z} {$p} {$_q} {$_r} {$_f}</DrillPeck>
+  <Comment>:</Comment>
+  <EndComment />
+  <UpperCase>true</UpperCase>
+  <MaximumArcRadius>1000</MaximumArcRadius>
+  <SuppressParserErrors>true</SuppressParserErrors>
+</PostProcessor>

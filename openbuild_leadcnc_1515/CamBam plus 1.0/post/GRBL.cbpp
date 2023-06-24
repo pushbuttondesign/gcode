@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>{$comment} Made using CamBam - http://www.cambam.co.uk {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$comment} Post-pro: GRBL {$endcomment}
+{$tooltable}
+{$cbfile.header}
+{$units} {$distancemode} {$cuttercomp(off)}
+{$toolchange(first)}
+{$clearance}</Header>
+  <Footer>{$clearance}
+{$spindle(off)}
+{$cbfile.footer}
+{$endrewind}
+</Footer>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$workplane}
+{$mop.header}
+{$spindle} {$s}
+{$blocks}
+{$mop.footer}
+  </MOP>
+  <CannedCycleStart />
+  <CannedCycleEnd />
+  <VelocityModeExactStop />
+  <VelocityModeConstantVelocity />
+  <ArcCW>{$_f} 
+{$g2}{$_x}{$_y}{$_z}{$i}{$j}{$k}</ArcCW>
+  <ArcCCW>{$_f} 
+{$g3}{$_x}{$_y}{$_z}{$i}{$j}{$k}</ArcCCW>
+  <Drill>{$g0} {$_x} {$_y}
+{$g0} Z{$mop.retractheight}
+{$g1} {$_z} {$_f}
+{$g0} Z{$mop.clearanceplane}</Drill>
+  <DrillDwell>{$g0} {$_x} {$_y}
+{$g0} Z{$mop.retractheight}
+{$g1} {$_z} {$_f}
+G4 {$p}
+{$g0} Z{$mop.clearanceplane}</DrillDwell>
+  <DrillPeck />
+  <NumberFormat>0.0#</NumberFormat>
+  <MaximumArcRadius>1000</MaximumArcRadius>
+</PostProcessor>

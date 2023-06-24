@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>O{$o}
+{$comment} CAMBAM {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$tooltable}
+{$cbfile.header}
+{$units}
+{$distancemode} {$velocitymode} {$cuttercomp(off)}
+{$toolchange(first)}
+{$clearance}</Header>
+  <Footer>{$clearance}
+ G28 G91 Z0
+ G90 G53 X-15.0 Y0.0
+ M09
+{$spindle(off)}
+{$cbfile.footer}
+{$endrewind}
+</Footer>
+  <ToolChange>{$comment} T{$tool.index} : {$tool.diameter} {$endcomment}
+	  G28 G91 Z0
+	  G90
+	  T{$tool.index}
+	  M6
+	  G55 G0 X1. Y1.
+	  G55 G0 G43 Z1. H{$tool.index}</ToolChange>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$velocitymode} {$workplane}
+{$mop.header}
+{$spindle} {$s}
+{$blocks}
+{$mop.footer}
+</MOP>
+  <Rapid>{$_g0} {$_f} {$_x} {$_y} {$_z} {$_a} {$_b} {$_c}</Rapid>
+  <FeedMove>{$_g1} {$_f} {$_x} {$_y} {$_z} {$_a} {$_b} {$_c}</FeedMove>
+  <ArcCW>{$_g2} {$_f} {$_x} {$_y} {$_z} {$i} {$j} {$k}</ArcCW>
+  <ArcCCW>{$_g3} {$_f} {$_x} {$_y} {$_z} {$i} {$j} {$k}</ArcCCW>
+  <UpperCase>true</UpperCase>
+  <MinimumArcLength>0.0001</MinimumArcLength>
+  <MaximumArcRadius>10000</MaximumArcRadius>
+</PostProcessor>

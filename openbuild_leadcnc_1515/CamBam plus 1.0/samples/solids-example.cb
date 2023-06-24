@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CADFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0" Name="solids-example">
+  <layers>
+    <layer name="Default" color="127,255,0">
+      <objects>
+        <script id="1">
+          <ModificationCount>135</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 -106 0 0 1" />import Solids
+
+# extrude all objects on Layer1, 10 drawing units.
+this.Entities.Add(Solids.ExtrudeSolid("Layer1",10.0,0.1))</script>
+        <script id="4">
+          <ModificationCount>65</ModificationCount>
+          <mat m="1 0 0 0 0 1 0 0 0 0 1 0 -54 0 0 1" />import Solids
+
+# create a surface of revolution from all objects on Layer2.
+this.Entities.Add(Solids.SurfaceOfRevolution("Layer2",200,0.1,False))</script>
+      </objects>
+      <ModificationCount>0</ModificationCount>
+    </layer>
+    <layer name="Layer1" color="127,255,0">
+      <objects>
+        <text id="2" p1="1.45520829285599,-6.61875006623566,0" p2="0,-9,0" Height="24" align="bottom,left" style="bold">
+          <ModificationCount>94</ModificationCount>
+          <mat m="Identity" />Extrude!</text>
+      </objects>
+      <ModificationCount>0</ModificationCount>
+    </layer>
+    <layer name="Layer2" color="127,255,0">
+      <objects>
+        <pline id="3">
+          <ModificationCount>91</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>12.2166467420031,62.9966027811834,0</p>
+            <p>25.2149974436126,54.2253579987966,0</p>
+            <p>16.6551079571869,46.4052120482348,0</p>
+            <p>26.0604186274571,37.3169343219063,0</p>
+            <p>16.126719717284,28.4400118915389,0</p>
+            <p>33.8805645780188,15.1246282459878,0</p>
+          </pts>
+        </pline>
+        <circle id="5" c="34.7934777166053,37.6949945068995,0" d="12.891874375741431">
+          <ModificationCount>7</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+      </objects>
+      <ModificationCount>0</ModificationCount>
+    </layer>
+  </layers>
+  <MachiningOptions>
+    <Stock>
+      <PMin>0,0</PMin>
+      <PMax>0,0</PMax>
+      <Color>255,165,0</Color>
+    </Stock>
+    <ToolProfile>Unspecified</ToolProfile>
+  </MachiningOptions>
+  <parts />
+  <ActiveLayer>Layer2</ActiveLayer>
+</CADFile>

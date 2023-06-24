@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ToolLibrary Version="0.9.8.0" ToolNameFormat="{$diameter}&quot; {$flutes} flute {$profile}" NumberFormat="0.0##">
+<ToolDefinition Name="0.04&quot; 2 flute EndMill">
+<Index>1</Index>
+<Diameter>0.04</Diameter>
+<ToolProfile>EndMill</ToolProfile>
+<Flutes>2</Flutes>
+<FluteLength>0</FluteLength>
+<Length>0</Length>
+<ShankDiameter>0</ShankDiameter>
+<HelixAngle>0</HelixAngle>
+<VeeAngle>0</VeeAngle>
+<MaxRampAngle>0</MaxRampAngle>
+<ToothLoad>0</ToothLoad>
+<AxialDepthOfCut>0</AxialDepthOfCut>
+<RadialDepthOfCut>0</RadialDepthOfCut>
+</ToolDefinition>
+<ToolDefinition Name="0.08&quot; 2 flute Unspecified">
+<Index>2</Index>
+<Diameter>0.08</Diameter>
+<ToolProfile>Unspecified</ToolProfile>
+<Flutes>2</Flutes>
+<FluteLength>0</FluteLength>
+<Length>0</Length>
+<ShankDiameter>0</ShankDiameter>
+<HelixAngle>0</HelixAngle>
+<VeeAngle>0</VeeAngle>
+<MaxRampAngle>0</MaxRampAngle>
+<ToothLoad>0</ToothLoad>
+<AxialDepthOfCut>0</AxialDepthOfCut>
+<RadialDepthOfCut>0</RadialDepthOfCut>
+</ToolDefinition>
+<ToolDefinition Name="0.5&quot; 4 flute Unspecified">
+<Index>5</Index>
+<Diameter>0.5</Diameter>
+<ToolProfile>Unspecified</ToolProfile>
+<Flutes>4</Flutes>
+<FluteLength>0</FluteLength>
+<Length>0</Length>
+<ShankDiameter>0</ShankDiameter>
+<HelixAngle>0</HelixAngle>
+<VeeAngle>0</VeeAngle>
+<MaxRampAngle>0</MaxRampAngle>
+<ToothLoad>0</ToothLoad>
+<AxialDepthOfCut>0</AxialDepthOfCut>
+<RadialDepthOfCut>0</RadialDepthOfCut>
+</ToolDefinition>
+<ToolDefinition Name="0.25&quot; 2 flute Unspecified">
+<Index>4</Index>
+<Diameter>0.25</Diameter>
+<ToolProfile>Unspecified</ToolProfile>
+<Flutes>2</Flutes>
+<FluteLength>0</FluteLength>
+<Length>0</Length>
+<ShankDiameter>0</ShankDiameter>
+<HelixAngle>0</HelixAngle>
+<VeeAngle>0</VeeAngle>
+<MaxRampAngle>0</MaxRampAngle>
+<ToothLoad>0</ToothLoad>
+<AxialDepthOfCut>0</AxialDepthOfCut>
+<RadialDepthOfCut>0</RadialDepthOfCut>
+</ToolDefinition>
+<ToolDefinition Name="0.125&quot; 2 flute Unspecified">
+<Index>3</Index>
+<Diameter>0.125</Diameter>
+<ToolProfile>Unspecified</ToolProfile>
+<Flutes>2</Flutes>
+<FluteLength>0</FluteLength>
+<Length>0</Length>
+<ShankDiameter>0</ShankDiameter>
+<HelixAngle>0</HelixAngle>
+<VeeAngle>0</VeeAngle>
+<MaxRampAngle>0</MaxRampAngle>
+<ToothLoad>0</ToothLoad>
+<AxialDepthOfCut>0</AxialDepthOfCut>
+<RadialDepthOfCut>0</RadialDepthOfCut>
+</ToolDefinition>
+</ToolLibrary>

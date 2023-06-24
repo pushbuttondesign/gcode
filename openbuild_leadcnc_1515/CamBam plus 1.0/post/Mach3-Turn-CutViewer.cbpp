@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PostProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0">
+  <PostFile>{$comment} Made using CamBam - http://www.cambam.co.uk {$endcomment}
+{$header}
+{$mops}
+{$footer}
+</PostFile>
+  <Header>{$comment} {$cbfile.name} {$date} {$endcomment}
+{$comment} Post processor: Mach3-Turn-CutViewer {$endcomment}
+{$tooltable}
+{$comment} CUTVIEWER {$endcomment}
+{$comment} FROM/30,0,5 {$endcomment}
+{$comment} Select dummy tool to avoid warnings {$endcomment}
+{$comment} STOCK/{$stock_width},{$stock_length},0,-5 {$endcomment}
+{$comment} TOOL/STANDARD,40,50,0,4,0 {$endcomment}
+{$cbfile.header}
+{$units} {$distancemode} {$velocitymode} {$cuttercomp(off)}
+{$arccentermode} 
+{$toolchange(first)}
+{$clearance}</Header>
+  <Footer>{$clearance}
+{$spindle(off)}
+{$cbfile.footer}
+{$endrewind}
+</Footer>
+  <ToolChange>{$clearance}
+{$comment} T{$tool.index} : {$tool.diameter} {$endcomment}
+{$tool.comment}
+T{$tool.index} M6</ToolChange>
+  <MOP>{$comment} {$mop.name} {$endcomment}
+{$toolchange}
+{$velocitymode} {$workplane}
+{$mop.header}
+{$spindle} {$s}
+{$blocks}
+{$mop.footer}
+</MOP>
+  <Rapid>{$g0} {$_f} {$_x} {$_z} {$_a} {$_b} {$_c}</Rapid>
+  <FeedMove>{$g1} {$_f} {$_x} {$_z} {$_a} {$_b} {$_c}</FeedMove>
+  <ArcCW>{$g2} {$_f} {$_x} {$_z} {$i} {$j} {$k}</ArcCW>
+  <ArcCCW>{$g3} {$_f} {$_x} {$_z} {$i} {$j} {$k}</ArcCCW>
+  <Drill>{$g81} {$_x} {$_z} {$_r} {$_f}</Drill>
+  <DrillDwell>{$g82} {$_x} {$_z} {$p} {$_r} {$_f}</DrillDwell>
+  <DrillPeck>{$g83} {$_x} {$_z} {$p} {$_q} {$_r} {$_f}</DrillPeck>
+  <MinimumArcLength>0.0001</MinimumArcLength>
+  <ArcCenterIncremental>G91.1</ArcCenterIncremental>
+  <ArcCenterAbsolute>G90.1</ArcCenterAbsolute>
+  <ClearancePlaneAxis>X</ClearancePlaneAxis>
+  <LatheXMode>Diameter</LatheXMode>
+  <InvertArcs>true</InvertArcs>
+</PostProcessor>

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CADFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0" Name="gear-script">
+  <layers>
+    <layer name="sun-gear" color="255,255,0" pen="2" visible="false">
+      <objects>
+        <script id="6">
+          <ModificationCount>23</ModificationCount>
+          <mat m="Identity" /># see Script property of the drawing object for planetary gear variables
+
+sungear = sun.getTeethProfile()
+# Rotate the gear around 180 around the Z axis to ensure in phase with planets
+sungear.Transform = Matrix4x4F.RotationZ(Math.PI)
+this.Entities.Add(sungear)
+
+</script>
+        <circle id="9" d="10">
+          <ModificationCount>0</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+      </objects>
+      <ModificationCount>2</ModificationCount>
+    </layer>
+    <layer name="planetary-gear" color="0,255,255" pen="2" visible="false">
+      <objects>
+        <script id="26">
+          <ModificationCount>17</ModificationCount>
+          <mat m="Identity" /># see Script property of the drawing object for planetary gear variables
+
+for p in range(0,planets):
+    planetX = planet.getTeethProfile()
+    T = planetX.Transform
+    # Rotate the gear around the X axis to ensure in phase with ring
+    T = T * Matrix4x4F.RotationZ(-p * 2 * Math.PI / planets)
+    # translate planet gear by sun and planet pitch radius
+    T = T * Matrix4x4F.Translation(sun.R + planet.R,0,0)
+    # rotate around Z axis for each copy
+    T = T * Matrix4x4F.RotationZ(p * 2 * Math.PI / planets)
+    planetX.Transform = T
+    this.Entities.Add(planetX)
+    
+    phole = Circle(Point3F(0,0,0),5)
+    T = phole.Transform
+    # translate hole by sun and planet pitch radius
+    T = T * Matrix4x4F.Translation(sun.R + planet.R,0,0)
+    # rotate around Z axis for each copy
+    T = T * Matrix4x4F.RotationZ(p * 2 * Math.PI / planets)
+    phole.Transform = T
+    this.Entities.Add(phole)
+
+</script>
+      </objects>
+      <ModificationCount>4</ModificationCount>
+    </layer>
+    <layer name="ring-gear" color="0,255,0" pen="2" visible="false">
+      <objects>
+        <script id="4">
+          <ModificationCount>11</ModificationCount>
+          <mat m="Identity" />this.Entities.Add(ring.getFrontView())</script>
+        <circle id="5" d="160">
+          <ModificationCount>0</ModificationCount>
+          <mat m="Identity" />
+        </circle>
+      </objects>
+      <ModificationCount>4</ModificationCount>
+    </layer>
+    <layer name="planetary-gear-solids" color="0,255,255">
+      <objects>
+        <script id="10">
+          <ModificationCount>5</ModificationCount>
+          <mat m="Identity" />this.Entities.Add(Solids.ExtrudeSolid("planetary-gear",extrude_depth,0.1))</script>
+      </objects>
+      <ModificationCount>1</ModificationCount>
+    </layer>
+    <layer name="ring-gear-solids" color="0,255,0">
+      <objects>
+        <script id="11">
+          <ModificationCount>6</ModificationCount>
+          <mat m="Identity" />this.Entities.Add(Solids.ExtrudeSolid("ring-gear",extrude_depth,0.1))</script>
+      </objects>
+      <ModificationCount>1</ModificationCount>
+    </layer>
+    <layer name="sun-gear-solids" color="255,255,0">
+      <objects>
+        <script id="12">
+          <ModificationCount>4</ModificationCount>
+          <mat m="Identity" />this.Entities.Add(Solids.ExtrudeSolid("sun-gear",extrude_depth,0.1))</script>
+      </objects>
+      <ModificationCount>1</ModificationCount>
+    </layer>
+  </layers>
+  <MachiningOptions>
+    <Stock>
+      <PMin>0,0</PMin>
+      <PMax>0,0</PMax>
+      <Color>255,165,0</Color>
+    </Stock>
+    <ToolProfile>Unspecified</ToolProfile>
+  </MachiningOptions>
+  <parts />import Gears
+import Solids
+
+DP = 0.5
+sunteeth = 15
+planetteeth = 25
+planets = 4
+PA = 20.0
+extrude_depth = 15
+
+planet5 = Gears.PlanetaryGear(DP,sunteeth,planetteeth,planets)
+
+sun = Gears.InvoluteGear(DP,sunteeth,PA,False)
+planet = Gears.InvoluteGear(DP,planetteeth,PA,False)
+ring = Gears.InvoluteGear(DP,planet5.RingTeeth,PA,True)
+<ActiveLayer>sun-gear-solids</ActiveLayer></CADFile>

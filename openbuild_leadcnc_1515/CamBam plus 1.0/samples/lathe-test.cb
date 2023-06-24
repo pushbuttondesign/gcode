@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CADFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="0.9.8.0" Name="lathe-test">
+  <layers>
+    <layer name="Default" color="127,255,0">
+      <ModificationCount>14</ModificationCount>
+      <objects>
+        <pline id="2">
+          <ModificationCount>18</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>-15,0,0</p>
+            <p>166,0,0</p>
+          </pts>
+        </pline>
+        <line id="24">
+          <ModificationCount>19</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>0,0</p>
+            <p>0,-10</p>
+          </pts>
+        </line>
+        <line id="38">
+          <ModificationCount>19</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>141.949996948242,-5.40000009536743</p>
+            <p>141.949996948242,0</p>
+          </pts>
+        </line>
+        <pline id="39">
+          <ModificationCount>1036</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>0,-10.0551748275757,0</p>
+            <p>4.97169980573142,-10.2417616473612,0</p>
+            <p>7.19999980926514,-12.6999998092651,0</p>
+            <p>13,-12.6999998092651,0</p>
+            <p>12.9701499938965,-10.8051700592041,0</p>
+            <p>47,-10.8051748275757,0</p>
+            <p>61.1982176360953,-10.4571889187419,0</p>
+            <p>73.9084266475569,-5.07150713422424,0</p>
+            <p>90.4963265438712,-8.30291620493481,0</p>
+            <p>98.682562856338,-7.8720616621734,0</p>
+            <p>109.949996948242,-7.05517530441284,0</p>
+            <p>129.949996948242,-7.05517530441284,0</p>
+            <p>129.949996948242,-5.45517539978027,0</p>
+            <p>141.949996948242,-5.45517539978027,0</p>
+          </pts>
+        </pline>
+      </objects>
+    </layer>
+    <layer name="Axis" color="0,255,255">
+      <ModificationCount>10</ModificationCount>
+      <objects>
+        <pline id="3">
+          <ModificationCount>166</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>38,77,0</p>
+            <p>66,77,0</p>
+          </pts>
+        </pline>
+        <pline id="4" Closed="true">
+          <ModificationCount>166</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>66,77,0</p>
+            <p>62,79,0</p>
+            <p>64,77,0</p>
+            <p>62,75,0</p>
+          </pts>
+        </pline>
+        <text id="5" p1="31,38,0" p2="-32,-1,0" Height="8" Font="" align="bottom,left">
+          <ModificationCount>279</ModificationCount>
+          <mat m="Identity" />+X</text>
+        <pline id="6">
+          <ModificationCount>192</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>38,77,0</p>
+            <p>38,49,0</p>
+          </pts>
+        </pline>
+        <pline id="7" Closed="true">
+          <ModificationCount>192</ModificationCount>
+          <mat m="Identity" />
+          <pts>
+            <p>38,49,0</p>
+            <p>40,53,0</p>
+            <p>38,51,0</p>
+            <p>36,53,0</p>
+          </pts>
+        </pline>
+        <text id="8" p1="69,74,0" p2="6,35,0" Height="8" Font="" align="bottom,left">
+          <ModificationCount>67</ModificationCount>
+          <mat m="Identity" />+Z</text>
+      </objects>
+    </layer>
+    <layer name="test" color="255,128,0" pen="2">
+      <ModificationCount>3</ModificationCount>
+      <objects />
+    </layer>
+  </layers>
+  <MachiningOptions>
+    <OutFile>lathe-test.nc</OutFile>
+    <FastPlungeHeight>0.2</FastPlungeHeight>
+    <PostProcessor>Mach3-Turn-CutViewer</PostProcessor>
+    <Stock>
+      <Material>Aluminium</Material>
+      <PMin>-150,-12.7,-12.7</PMin>
+      <PMax>5,12.7,12.7</PMax>
+      <Color>255,128,0</Color>
+    </Stock>
+    <ToolLibrary>Lathe-mm</ToolLibrary>
+    <ToolNumber>1</ToolNumber>
+    <ToolProfile>Unspecified</ToolProfile>
+    <MachiningOrigin>145,0</MachiningOrigin>
+  </MachiningOptions>
+  <parts>
+    <part Name="Part1">
+      <machineops>
+        <mop xsi:type="MOPLathe">
+          <WorkPlane state="Value">XZ</WorkPlane>
+          <OptimisationMode state="Default">Experimental</OptimisationMode>
+          <RoughingFinishing state="Value">Roughing</RoughingFinishing>
+          <ToolDiameter state="Default">2</ToolDiameter>
+          <ToolNumber state="Default">1</ToolNumber>
+          <ToolProfile state="Default">Lathe</ToolProfile>
+          <PlungeFeedrate state="Default">300</PlungeFeedrate>
+          <CutFeedrate state="Default">500</CutFeedrate>
+          <MaxCrossoverDistance state="Default">0.7</MaxCrossoverDistance>
+          <CustomMOPHeader state="Default" />
+          <CustomMOPFooter state="Default" />
+          <Name>rough</Name>
+          <StockSurface state="Default">12.7</StockSurface>
+          <RoughingClearance state="Value">0.1</RoughingClearance>
+          <ClearancePlane state="Value">14</ClearancePlane>
+          <SpindleDirection state="Default">CW</SpindleDirection>
+          <SpindleSpeed state="Default">1000</SpindleSpeed>
+          <SpindleRange state="Default">0</SpindleRange>
+          <VelocityMode state="Default">Undefined</VelocityMode>
+          <primitive>
+            <prim>39</prim>
+          </primitive>
+          <DepthIncrement state="Value">0.25</DepthIncrement>
+          <LatheLeadOutLength state="Value">0.5</LatheLeadOutLength>
+          <LatheLeadInLength state="Value">0.5</LatheLeadInLength>
+        </mop>
+        <mop xsi:type="MOPLathe">
+          <WorkPlane state="Value">XZ</WorkPlane>
+          <OptimisationMode state="Default">Experimental</OptimisationMode>
+          <RoughingFinishing state="Value">Finishing</RoughingFinishing>
+          <ToolDiameter state="Default">2</ToolDiameter>
+          <ToolNumber state="Default">1</ToolNumber>
+          <ToolProfile state="Default">Lathe</ToolProfile>
+          <PlungeFeedrate state="Value">100</PlungeFeedrate>
+          <CutFeedrate state="Value">300</CutFeedrate>
+          <MaxCrossoverDistance state="Default">0.7</MaxCrossoverDistance>
+          <CustomMOPHeader state="Default" />
+          <CustomMOPFooter state="Default" />
+          <Name>finish</Name>
+          <StockSurface state="Default">12.7</StockSurface>
+          <RoughingClearance state="Default">0</RoughingClearance>
+          <ClearancePlane state="Value">14</ClearancePlane>
+          <SpindleDirection state="Default">CW</SpindleDirection>
+          <SpindleSpeed state="Default">1000</SpindleSpeed>
+          <SpindleRange state="Default">0</SpindleRange>
+          <VelocityMode state="Default">Undefined</VelocityMode>
+          <primitive>
+            <prim>39</prim>
+          </primitive>
+        </mop>
+      </machineops>
+      <Stock>
+        <PMin>0,0</PMin>
+        <PMax>0,0</PMax>
+        <Color>0,0,0,0</Color>
+      </Stock>
+      <ToolProfile>Unspecified</ToolProfile>
+      <Nesting>
+        <BasePoint>0,0</BasePoint>
+        <NestMethod>None</NestMethod>
+      </Nesting>
+    </part>
+  </parts>
+  <ActiveLayer>test</ActiveLayer>
+  <ActivePart>Part1</ActivePart>
+</CADFile>
