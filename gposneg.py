@@ -5,6 +5,7 @@ DESCRIPTION
 g-code positive negative space swap
 takes a g-code file exported by CAMBAM GRBL post-processor and swaps the
 positive/negative symbols on the X and Y axis
+as well as I J K axis used for arcs
 
 INPUTS
 path to g-code file
@@ -30,13 +31,19 @@ with open(args.g_in, 'r') as f:
 		strings = re.split(r'([^0-9|\.-])', line) #split at any non-numeric character
 		strings = iter(strings)
 		for string in strings:
-			if string == 'X' or string == 'x' or string == 'Y' or string == 'y':
+			if  string == 'X' or string == 'x' or string == 'Y' or string == 'y' \
+				or string == 'I' or string == 'i' or string == 'J' or string == 'j' \
+				or string == 'K' or string == 'k':
 				print(string, end='')
+				num = next(strings)
 				try:
-					num = next(strings)
-					print(float(num)*-1, end='')
+					num = float(num)
+				#if next string is not a number, just print it and move on
 				except:
-					sys.exit("An Error occured parsing ", num, " do not use this g-code")
+					print(num, end='')
+				#swap sign if next string is a number
+				else:
+					print(float(num)*-1, end='')
 			else:
 				print(string, end='')
 f.close()
