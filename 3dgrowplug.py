@@ -5,83 +5,160 @@
 MODULE DESCRIPTION
 Generates gcode for FDM 3D printers of a hydroponics/airoponics plant root grow plug
 Cylander with solid walls and internal structure being a rectiliner grid made up of single filament strands
-Prints single cylander on bed center
+Prints single cylinder on bed center
 All print speeds and feeds are fixed at default bridging settings
 G code head & foot based on Cura output for Ultimaker S5
-Assumes bed- XYZ is greater than 200x200x200 by default
+Assumes bedXYZ is 100x100x100 by default
 
 MODULE FEATURES
-./3dgrowplug -cylander_dia 40 -z 40 --grid_space 1.75 --nozzel_dia 0.4 > out.g
+python3 3dgrowplug.py -d 40 -z 40 -g 1.75 -n 0.4 > out.g
 """
+
+#TODO - add Extruder
 
 # import std lib
 import sys
 import argparse
 import math
+import pprint as pp
+
+debug = True
 
 #get cmd line arguments
 parser = argparse.ArgumentParser(prog='3dgrowplug',
-  description='Generates gcode for FDM 3D printers of a hydroponics/airoponics plant root grow plug')
-parser.add_argument('-d', '--cylander_dia', required=True,
-                    help='diameter of cylander in mm')
-parser.add_argument('-z', '--cylander_height', required=True,
-                    help='z height of cylander in mm')
-parser.add_argument('-g', '--grid_space', required=True,
+  		 description='Generates gcode for FDM 3D printers of a hydroponics/airoponics plant root grow plug')
+parser.add_argument('-d', '--cylinder_dia', required=True, type=float,
+                    help='diameter of cylinder in mm')
+parser.add_argument('-z', '--cylinder_height', required=True, type=float,
+                    help='z height of cylinder in mm')
+parser.add_argument('-g', '--grid_space', required=True, type=float,
                     help='internal grid spacing in mm')
-parser.add_argument('-n', '--nozzel_dia', required=True,
-                    help='nozzel diameter (and therefore layer height) in mm')
-parser.add_argument('-b', '--bedXYZ', required=False,
+parser.add_argument('-n', '--nozzle_dia', required=True, type=float,
+                    help='nozzle diameter (and therefore layer height) in mm')
+parser.add_argument('-b', '--bedXYZ', required=False, nargs='?', default=100, const=1, type=float,
                     help='bed length, width & height')
+args = parser.parse_args()
 
 #validate arguments
-args = parser.parse_args()
-if args.b == None:
-  args.b = 200
+#ensure cylinder height is divisible by an even number of layer thicknesses
+#add the remainder to the height
+remainder = args.cylinder_height / args.nozzle_dia * 2 - float(math.trunc(args.cylinder_height / args.nozzle_dia * 2))
+if remainder > 0:
+	args.cylinder_height += remainder
 try:
-    if type(args.b) != int and type(args.b) != float
-      raise ValueError("bed XYZ must be a number")
-    if type(args.n) != int and type(args.n) != float
-      raise ValueError("nozzel diameter must be a number")  
-    if args.n < 0 or args.n > 1:
-      raise ValueError("nozzel diameter must be >0 <1")
-    if type(args.d) != int and type(args.d) != float
-      raise ValueError("cylander diameter must be a number")
-    if args.d < 0 or args.d > args.b:
-      raise ValueError("cylander diameter must be >0 <bed max")
-    if type(args.z) != int and type(args.z) != float
-      raise ValueError("cylander height must be a number")
-    if args.z < 0 or args.z > args.b - 5 - args.n:
-      raise ValueError("cylander height must be >0 <bed max - 5 - nozzel diameter")
-    if type(args.g) != int and type(args.g) != float
-      raise ValueError("grid spacing must be a number")
-    if args.g < 0 or args.g > args.d:
-      raise ValueError("grid spacing must be >0 <cylander diameter")
+    if args.nozzle_dia <= 0 or args.nozzle_dia > 2:
+      raise ValueError("nozzle diameter must be >0 <2")
+    if args.cylinder_dia <= 0 or args.cylinder_dia >= args.bedXYZ:
+      raise ValueError("cylinder diameter must be >0 <bed max")
+    if args.cylinder_height <= 0 or args.cylinder_height >= args.bedXYZ - 5 - args.nozzle_dia:
+      raise ValueError("cylinder height must be >0 <bedXYZ - 5 - nozzle diameter")
+    if args.grid_space <= 0 or args.grid_space >= args.cylinder_dia:
+      raise ValueError("grid spacing must be >0 <cylinder diameter")
 except ValueError as err:
-  print(err)
+  print(err, file=sys.stderr)
+  print('DO NOT USE THIS GCODE', file=sys.stderr)
   exit()
- 
-#setup other variables
-args.z += args.z % args.n #add the remainder to z to ensure it is devisible by layer height without a remainder
-z_safe = args.z + 5 #z safe height above work in mm
-ccenter = args.b / 2
-grid_count = math.trunc(args.d / args.g) + 1 #zero indexed
-layer_count = args.z / args.n #number of layers
-layer_curr = 0 #current layer
-layer_heights = [] #list of z height for each layer
-i = 1
-while i <= layer_count:
-  layer_heights.append(args.nozzel_dia * i)
 
-#caculate cordinates
-xy = []
-xy.append((-abs(grid_count / 2 * args.g), sqrt(pow(arg.d/2, 2) - pow(xy[i][0]))) #start
+if debug == True:
+	print(";Debug: validated inputs")
+	print(";cylinder_diameter: ", args.cylinder_dia)
+	print(";cylinder_height: ", args.cylinder_height)
+	print(";grid_space: ", args.grid_space)
+	print(";nozzle_dia: ", args.nozzle_dia)
+	print(";bedXYZ: ", args.bedXYZ)
+
+#setup other variables
+clearence = 5
+z_safe = args.cylinder_height + clearence #z safe height above work in mm
+ccenter = args.bedXYZ / 2
+rad = args.cylinder_dia / 2
+#calculate grid count to ensure there is a gap at both sides of circle to avoid zero distance
+grid_count = 0
+#if roundly diameter is divisible by grid spacing
+if args.cylinder_dia % args.grid_space == 0:
+	grid_count = int((args.cylinder_dia / args.grid_space) - 2) #ignore first and last
+#else if indevisible
+else:
+	grid_count = int(math.floor(args.cylinder_dia / args.grid_space) + 1)
+layer_count = args.cylinder_height / args.nozzle_dia #number of layers
+layer_heights = [] #list of z height for each layer
+layer_curr = 1 #current layer
+while layer_curr <= layer_count:
+  layer_heights.append(args.nozzle_dia * layer_curr)
+  layer_curr += 1
+
+if debug == True:
+	print()
+	print(";Debug: variables")
+	print(";clearence: ", clearence)
+	print(";z_safe; ", z_safe)
+	print(";ccenter: ", ccenter)
+	print(";rad: ", rad)
+	print(";grid_count: ", grid_count)
+	print(";layer_count: ", layer_count)
+	print(";layer_heights: ")
+	for i in layer_heights:
+		print(';', i)
+	
+#caculate coordinates on a circle using y = sqrt(r^2 - x^2)
+
+#x
+#start in top left -x +y quadrent
+#move down to -x -y quadrent
+#move right
+#move up
+#move right
+#repeat to complete an x layer
+#reverse x & y to create a y layer
+
+#list x cords
+x = []
+x.append(-abs(grid_count / 2 * args.grid_space)) #start with left most -x value
+x.append(-abs(grid_count / 2 * args.grid_space)) #duplicate for top and bottom y at each x
+#incrementally add grid spacing to move to right most x value
 for i in range(0, grid_count):
-  xy.append((xy[i][0], -abs(sqrt(pow(arg.d/2, 2) - pow(xy[i][0]))))
-  xy.append((xy[i][0] + args.g, xy[i][1]))
-  xy.append((xy[i][0] + args.g, xy[i][1]))
-  xy.append((xy[i][0], -abs(sqrt(pow(arg.d/2, 2) - pow(xy[i][0]))))
-  xy.append((xy[i][0] + args.g, xy[i][1]))
-  xy.append((xy[i][0] + args.g, xy[i][1]))
+	x.append(x[-1] + args.grid_space)
+	x.append(x[-1]) #duplicate
+
+#list y cords
+y = []
+flipflop = 1
+flopflip = 0
+for i in x:
+	if flipflop == 1 and flopflip == 0:
+		y.append(abs(math.sqrt(abs(pow(rad, 2) - pow(i, 2)))))
+		flipflop = 0
+		flopflip = 0
+	elif flipflop == 0 and flopflip == 0:
+		y.append(-abs(math.sqrt(abs(pow(rad, 2) - pow(i, 2)))))
+		flipflop = 1
+		flopflip = 1
+	elif flipflop == 1 and flopflip == 1:
+		y.append(-abs(math.sqrt(abs(pow(rad, 2) - pow(i, 2)))))
+		flipflop = 0
+		flopflip = 1
+	elif flipflop == 0 and flopflip == 1:
+		y.append(abs(math.sqrt(abs(pow(rad, 2) - pow(i, 2)))))
+		flipflop = 1
+		flopflip = 0
+
+#combine cords
+xy = list(zip(x, y))
+
+#reverse x & y
+yx = []
+for x, y in xy:
+	yx.append((y, x))
+
+if debug == True:
+	print()
+	print(";Debug: layer X cordinates")
+	for i in xy:
+		print(';', i)
+	print()
+	print(";Debug: layer Y cordinates")
+	for i in yx:
+		print(';', i)
 
 #print header
 print("""
@@ -103,32 +180,31 @@ G1 F600 X{} Y{} ;move to bed center
 G92 X0 Y0       ;set XY position as 0,0
 G1 F600 X{} Y{} ;move to starting position
 M106 S255       ;fan on full
-""").format(z_safe, ccenter, ccenter, xystart[0], xystart[1])
-
-#1st layer
-print("""
-;LAYER:{}
-G1 F600 Z{}      ;move to layer z height
-G1 F2700 E0      ;ready extruder
-G1 F600          ;set speed
-G1 X{}
-""").format(layer_curr, layer_height[0], xystart[0] + grid_ends)
-
-for i in range(0, grid_count):
-  print("G1 Y{} E{}").format(-abs(args.g))
-layer_count += 1
-layer_height *= layer_count
+G1 F2700 E0     ;ready extruder
+G1 F600          ;set speed""".format(z_safe, ccenter, ccenter, xy[0][0], xy[0][1]))
 
 #nth layer
-while layer_curr < layer_count:
+layer_heights = enumerate(layer_heights)
+for layer_curr, height in layer_heights:
+	print("""
+;LAYER:{}X
+G1 Z{}      ;move to layer z height""".format(layer_curr, height))
+	for x, y in xy:
+		print("G1 X{} Y{}".format(x, y))
+	print("G1 Z{}      ;move to traverse height".format(height + clearence))
+	print("""
+;LAYER:{}Y
+G1 Z{}      ;move to layer z height""".format(layer_curr, height))
+	for x, y in yx:
+		print("G1 X{} Y{}".format(x, y))
+	print("G1 Z{}      ;move to traverse height".format(height + clearence))
 
 #print footer
 print("""
 M104 T0 S0      ;turn off extruder temp
 M140 S0         ;turn off bed temp
 M107            ;fan off
-G0 Z{d}         ;rapid move z to safe height
+G0 Z{}         ;rapid move z to safe height
 G1 F2700 E-6.5  ;move extruder back
 G28 XYZ         ;move all axis to home
-;END OF FILE
-""").format(z_safe)
+;END OF FILE""".format(z_safe))
