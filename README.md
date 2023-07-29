@@ -12,6 +12,6 @@ kirimoto - machine, profile and tool files for [kirimoto] (https://grid.space/ki
 cambam - program settings files including machine and tool libraries as well as other program settings
 
 ## work-in-progress
-- [] other algorithmic code generation programs including:
-- [] g-code from topography for a given location
-- [] algorithmic art
+- [ ] other algorithmic code generation programs including:
+- [ ] g-code from topography for a given location
+- [ ] algorithmic art
