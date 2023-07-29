@@ -7,9 +7,9 @@
 
 - 3dgrowplug - a python program to generate a 3D printed grow plug for hydroponics applications
 
-- kirimoto - machine, profile and tool files for [kirimoto](https://grid.space/kiri/) with example workspace that has them all imported
+- kirimoto - machine, profile and tool libary for [kirimoto](https://grid.space/kiri/) with example workspace that has them all imported
 
-- cambam - program settings files including machine and tool libraries as well as other program settings
+- cambam - program settings files including machine, post processor and tool library as well as other program settings
 
 ## Work in Progress
 - [ ] other algorithmic code generation programs including:
