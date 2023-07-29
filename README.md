@@ -11,7 +11,7 @@
 
 - cambam - program settings files including machine and tool libraries as well as other program settings
 
-## work-in-progress
+## Work in Progress
 - [ ] other algorithmic code generation programs including:
 - [ ] g-code from topography for a given location
 - [ ] algorithmic art
