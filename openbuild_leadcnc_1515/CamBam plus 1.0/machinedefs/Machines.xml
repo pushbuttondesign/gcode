@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <MachineLibrary Version="0.9.8.0">
-<MachineDefinition Name="Steve">
+<MachineDefinition Name="S1">
 <Description>Openbuilds_LeadCNC_1515</Description>
 <SpindleSpeeds>10000-30000RPM</SpindleSpeeds>
 <SpindlePower>1.25</SpindlePower>
