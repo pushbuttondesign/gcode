@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<MaterialLibrary Version="0.9.8.0">
+<Material Name="Material">
+<SurfaceSpeed>0</SurfaceSpeed>
+<MachinabilityIndex>0</MachinabilityIndex>
+<Hardness>0</Hardness>
+<Density>0</Density>
+<MeltingPoint>0</MeltingPoint>
+</Material>
+</MaterialLibrary>
