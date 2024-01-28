@@ -97,7 +97,7 @@
 </ToolDefinition>
 <ToolDefinition Name="46282-K Tapered Ball Nose">
 <Index>15</Index>
-<Diameter>1.58</Diameter>
+<Diameter>6.35</Diameter>
 <ToolProfile>BallNose</ToolProfile>
 <Flutes>4</Flutes>
 <FluteLength>25.4</FluteLength>
